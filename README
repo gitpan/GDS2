@@ -1,0 +1,18 @@
+This is GDS2, a module for quickly creating programs to read, 
+write, and manipulate GDS2 (GDSII) stream files.
+
+Originally developed on big endian machines, it now works 
+on little endian machines also.
+
+Currently the module is not too speedy but has been improved
+over time. The speed of the module is still too slow to use on
+chip level GDS2 files. 
+
+I originally planned on releasing version 2.01 of the module 
+which would make use of Inline and C to speed things up a bit
+but alas my preliminary version 2.01 has shown little or no 
+improvement in speed ... I may have to wait for Perl 6 and try again.
+
+Send feedback/suggestions to
+schumack@cpan.org
+

@@ -59,5 +59,5 @@ $gds2File -> printBoundary(
 $gds2File -> printEndstr;
 $gds2File -> printEndlib();
 $gds2File -> close();
-ok 2,(stat("test.gds"))[7] == 338, 'Size of test.gds looks wrong.';
+ok 2,(stat("test.gds"))[7] == 346, 'Size of test.gds looks wrong.';
 

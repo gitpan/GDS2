@@ -55,3 +55,7 @@ Makefile.PL created by h2xs 1.20 with options
       Fixed posAngle() so it doesn't round angles (Thanks Martin for 
       pointing out the problem).
 
+1.32  Took Inline::C version and stripped out C code. Some minor changes
+      which gave a welcome speed increase.
+
+

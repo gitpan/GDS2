@@ -1,0 +1,44 @@
+This file contains message digests of all files listed in MANIFEST,
+signed via the Module::Signature module, version 0.21.
+
+To verify the content in this distribution, first make sure you have
+Module::Signature installed, then type:
+
+    % cpansign -v
+
+It would check each file's integrity, as well as the signature's
+validity.  If "==> Signature verified OK! <==" is not displayed,
+the distribution may already have been compromised, and you should
+not run its Makefile.PL or Build.PL.
+
+-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA1
+
+SHA1 186fe5159e0242a71ca94a88b078a3c863623bbd Build.PL
+SHA1 a5168ce6b4085ff37a4f5db02e33b309de0c553a Changes
+SHA1 a5c80b9b4dc4e2f9d89d5440ddcfce94bf4a7b8b Examples/act_folder.xpm
+SHA1 24fecfaa097d2b9c827b6a2e97bc2b48622b08b3 Examples/file.xpm
+SHA1 bce2dd5dd026ff1e37fab4cdea38cdd609927092 Examples/folder.xpm
+SHA1 4cb576f85750730875fa56387489e23dfe68014d Examples/gds2dump
+SHA1 7d77e640dec5e849111d8ac02159fff78afc9995 Examples/gds2dumptk
+SHA1 98233c74edbf39a95e3ab4312821828913e0c370 Examples/gdsdump2gds
+SHA1 894a4a32fee8d007fa11d21b397422777e502735 Examples/gdslayers
+SHA1 c85bbf922af70099913c7cbf705a8d8876888c69 Examples/gdspath4topath0
+SHA1 c52b31ee58f08d247dc8ae2a9e49637c71aab8df Examples/modgds2
+SHA1 0f924bde4e6b4ae9928d7ec39324dc0a76791815 Examples/textfile.xpm
+SHA1 c4043adb10da421dd76b813c4405957eaee5164e INSTALL
+SHA1 c3351c1dad14fc5e184970e4337f8ff097b7d257 MANIFEST
+SHA1 9b22d933cab2ac80b80c0efe4f74f87acb7efc61 META.yml
+SHA1 52fe2659109181d54f89eca19f7907e0ce3fdc86 README
+SHA1 d1569117cc1b24119989829e035349d99780ef48 TEST.dump
+SHA1 a4fe3a3030a40fa85905d8d2db32d2d12cd48c00 lib/GDS2.pm
+SHA1 e906bf00cd6654e5f5cd0ca6fd27e763011b0b23 t/01load.t
+SHA1 0c57ed12e33ffb642d67fd177b4355475429d8c2 t/02create.t
+SHA1 a65719c4dc857c2c1001d02bce83416a91607c17 t/03dump.t
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.2.3 (GNU/Linux)
+
+iD8DBQE/o0uN8yYS6i8J7sERAjweAJ9ZF5r/5clW/PqZSDi9bB2s+Jl3fACZAbvZ
+h5ibTe3Cm4fsKVC/pMZ9OYo=
+=Rd/9
+-----END PGP SIGNATURE-----

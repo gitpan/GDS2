@@ -1,19 +1,21 @@
 package GDS2; 
 {
 require 5.006;
-$GDS2::VERSION = '1.3.1'; 
+$GDS2::VERSION = '1.32'; 
 ## Note: '@ ( # )' used by the what command  E.g. what GDS2.pm
-$GDS2::revision = '@(#) $RCSfile: GDS2.pm,v $ $Revision: 1.64 $ $Date: 2003-03-21 15:32:23-06 $';
+$GDS2::revision = '@(#) $RCSfile: GDS2.pm,v $ $Revision: 1.67 $ $Date: 2003-10-06 14:02:46-05 $';
 use strict;
+use constant TRUE  => 1;
+use constant FALSE => 0;
+use constant TIMER_ON => FALSE;
 use Config;
 use IO::File;
+
 use warnings;
 #use Attribute::Profiled;
 no strict qw( refs );
 my $G_timer;
-use constant TRUE  => 1;
-use constant FALSE => 0;
-use constant TIMER_ON => FALSE;
+
 if (TIMER_ON)
 {
     #use Benchmark::Timer;
@@ -24,8 +26,8 @@ if ($haveFlock)
 {
     use Fcntl q(:flock);  # import LOCK_* constants
 }
-my $isLittleEndian = 0; #default
-$isLittleEndian = 1 if ($Config{'byteorder'} =~ m|^1|); ## mswin32 cygwin vms
+my $isLittleEndian = FALSE; #default
+$isLittleEndian = TRUE if ($Config{'byteorder'} =~ m/^1/); ## mswin32 cygwin vms
 
 # POD documentation is sprinkled throughout the file in an 
 # attempt at Literate Programming style (which Perl partly supports ...
@@ -133,66 +135,66 @@ use constant LIBSECUR     => 59;   ## INTEGER_2  Access control list stuff for C
 #################################################################################################
 
 my %RecordTypeNumbers=(
-'HEADER'      =>  0,
-'BGNLIB'      =>  1,
-'LIBNAME'     =>  2,
-'UNITS'       =>  3,
-'ENDLIB'      =>  4,
-'BGNSTR'      =>  5,
-'STRNAME'     =>  6,
-'ENDSTR'      =>  7,
-'BOUNDARY'    =>  8,
-'PATH'        =>  9,
-'SREF'        => 10,
-'AREF'        => 11,
-'TEXT'        => 12,
-'LAYER'       => 13,
-'DATATYPE'    => 14,
-'WIDTH'       => 15,
-'XY'          => 16,
-'ENDEL'       => 17,
-'SNAME'       => 18,
-'COLROW'      => 19,
-'TEXTNODE'    => 20,
-'NODE'        => 21,
-'TEXTTYPE'    => 22,
-'PRESENTATION'=> 23,
-'SPACING'     => 24,
-'STRING'      => 25,
-'STRANS'      => 26,
-'MAG'         => 27,
-'ANGLE'       => 28,
-'UINTEGER'    => 29,
-'USTRING'     => 30,
-'REFLIBS'     => 31,
-'FONTS'       => 32,
-'PATHTYPE'    => 33,
-'GENERATIONS' => 34,
-'ATTRTABLE'   => 35,
-'STYPTABLE'   => 36,
-'STRTYPE'     => 37,
-'EFLAGS'      => 38,
-'ELKEY'       => 39,
-'LINKTYPE'    => 40,
-'LINKKEYS'    => 41,
-'NODETYPE'    => 42,
-'PROPATTR'    => 43,
-'PROPVALUE'   => 44,
-'BOX'         => 45,
-'BOXTYPE'     => 46,
-'PLEX'        => 47,
-'BGNEXTN'     => 48,
-'ENDEXTN'     => 49,
-'TAPENUM'     => 50,
-'TAPECODE'    => 51,
-'STRCLASS'    => 52,
-'RESERVED'    => 53,
-'FORMAT'      => 54,
-'MASK'        => 55,
-'ENDMASKS'    => 56,
-'LIBDIRSIZE'  => 57,
-'SRFNAME'     => 58,
-'LIBSECUR'    => 59,
+'HEADER'      => HEADER,
+'BGNLIB'      => BGNLIB,
+'LIBNAME'     => LIBNAME,
+'UNITS'       => UNITS,
+'ENDLIB'      => ENDLIB,
+'BGNSTR'      => BGNSTR,
+'STRNAME'     => STRNAME,
+'ENDSTR'      => ENDSTR,
+'BOUNDARY'    => BOUNDARY,
+'PATH'        => PATH,
+'SREF'        => SREF,
+'AREF'        => AREF,
+'TEXT'        => TEXT,
+'LAYER'       => LAYER,
+'DATATYPE'    => DATATYPE,
+'WIDTH'       => WIDTH,
+'XY'          => XY,
+'ENDEL'       => ENDEL,
+'SNAME'       => SNAME,
+'COLROW'      => COLROW,
+'TEXTNODE'    => TEXTNODE,
+'NODE'        => NODE,
+'TEXTTYPE'    => TEXTTYPE,
+'PRESENTATION'=> PRESENTATION,
+'SPACING'     => SPACING,
+'STRING'      => STRING,
+'STRANS'      => STRANS,
+'MAG'         => MAG,
+'ANGLE'       => ANGLE,
+'UINTEGER'    => UINTEGER,
+'USTRING'     => USTRING,
+'REFLIBS'     => REFLIBS,
+'FONTS'       => FONTS,
+'PATHTYPE'    => PATHTYPE,
+'GENERATIONS' => GENERATIONS,
+'ATTRTABLE'   => ATTRTABLE,
+'STYPTABLE'   => STYPTABLE,
+'STRTYPE'     => STRTYPE,
+'EFLAGS'      => EFLAGS,
+'ELKEY'       => ELKEY,
+'LINKTYPE'    => LINKTYPE,
+'LINKKEYS'    => LINKKEYS,
+'NODETYPE'    => NODETYPE,
+'PROPATTR'    => PROPATTR,
+'PROPVALUE'   => PROPVALUE,
+'BOX'         => BOX,
+'BOXTYPE'     => BOXTYPE,
+'PLEX'        => PLEX,
+'BGNEXTN'     => BGNEXTN,
+'ENDEXTN'     => ENDEXTN,
+'TAPENUM'     => TAPENUM,
+'TAPECODE'    => TAPECODE,
+'STRCLASS'    => STRCLASS,
+'RESERVED'    => RESERVED,
+'FORMAT'      => FORMAT,
+'MASK'        => MASK,
+'ENDMASKS'    => ENDMASKS,
+'LIBDIRSIZE'  => LIBDIRSIZE,
+'SRFNAME'     => SRFNAME,
+'LIBSECUR'    => LIBSECUR,
 );
 
 my @RecordTypeStrings=( ## for ascii print of GDS
@@ -401,26 +403,40 @@ sub new #: Profiled
         flock($fileHandle,$lockMode) or die "File lock on $fileName failed because $!";
     }
     binmode $fileHandle,':raw'; ## may need Perl 5.6 for discipline
+    $self -> {'Fd'}         = $fileHandle -> fileno;
     $self -> {'FileHandle'} = $fileHandle;
     $self -> {'FileName'}   = $fileName; ## the gds2 filename
-    $self -> {'GDSLENGTH'}  = 0;         ## total file size so far
-    $self -> {'EOLIB'}      = 0;         ## end of library flag
+    $self -> {'BytesDone'}  = 0;         ## total file size so far
+    $self -> {'EOLIB'}      = FALSE;     ## end of library flag
     $self -> {'HEADER'}     = -1;        ## in header flag
-    $self -> {'INDATA'}     = 0;         ## in data flag
+    $self -> {'INDATA'}     = FALSE;     ## in data flag
     $self -> {'Length'}     = 0;         ## length of data
     $self -> {'DataType'}   = -1;        ## one of 7 gds datatypes
-    $self -> {'UUnits'}     = 0;         ## for gds2 file
-    $self -> {'DBUnits'}    = 0;         ## for gds2 file
+    $self -> {'UUnits'}     = 0.0;       ## for gds2 file
+    $self -> {'DBUnits'}    = 0.0;       ## for gds2 file
     $self -> {'Record'}     = '';        ## the whole record as found in gds2 file
     $self -> {'RecordType'} = -1;
     $self -> {'DataIndex'}  = 0;
-    $self -> {'RecordData'} = ('');
+    $self -> {'RecordData'} = ();
     $self -> {'CurrentDataList'} = '';
-    $self -> {'InStr'}      = 0;         ##flag for write error checking
-    $self -> {'InElm'}      = 0;         ##flag for write error checking
+    $self -> {'InStr'}      = FALSE;     ##flag for write error checking
+    $self -> {'InElm'}      = FALSE;     ##flag for write error checking
     $self -> {'Resolution'} = $resolution;
-    $self -> {'UsingPrettyPrint'} = 0;   ## print as string ...
+    $self -> {'UsingPrettyPrint'} = FALSE; ## print as string ...
     $self;
+}
+################################################################################
+
+=head2 fileNum - file number...
+
+  usage:
+
+=cut
+
+sub fileNum #: Profiled
+{
+    my($self,%arg) = @_;
+    int($self -> {'Fd'});
 }
 ################################################################################
 
@@ -445,7 +461,7 @@ sub close #: Profiled
     {
         my $fh = $self -> {'FileHandle'};
         print $fh "\x1a\x04"; # a ^Z and a ^D
-        $self -> {'GDSLENGTH'} += 2;
+        $self -> {'BytesDone'} += 2;
     }
     if ((defined $pad)&&($pad > 0))
     {
@@ -801,7 +817,7 @@ sub printBoundary #: Profiled
         else                  {push @xyTmp,int((($xy -> [$i])*$resolution)-$G_epsilon);}
     }
     ## gds expects square to have 5 coords (closure)
-    if (($xy -> [0] != ($xy -> [($#$xy - 1)])) && ($xy -> [1] != ($xy -> [$#$xy])))
+    if (($xy -> [0] != ($xy -> [($#$xy - 1)])) || ($xy -> [1] != ($xy -> [$#$xy])))
     {
         if ($xy -> [0] >= 0) {push @xyTmp,int((($xy -> [0])*$resolution)+$G_epsilon);}
         else                 {push @xyTmp,int((($xy -> [0])*$resolution)-$G_epsilon);}
@@ -1353,10 +1369,10 @@ sub saveGds2Record #: Profiled
             foreach my $num (@data)
             {
                 my $real = $num;
-                my $negative = 0;
+                my $negative = FALSE;
                 if($num < 0.0) 
                 {
-                    $negative = 1;
+                    $negative = TRUE;
                     $real = 0 - $num;
                 }
 
@@ -1461,7 +1477,7 @@ sub printGds2Record #: Profiled
         {
             my $length = substr($data[0],0,2);
             $recordLength = unpack 'v',$length;
-            $self -> {'GDSLENGTH'} += $recordLength;
+            $self -> {'BytesDone'} += $recordLength;
             $length = reverse $length;
             print($fh $length);
 
@@ -1535,7 +1551,7 @@ sub printGds2Record #: Profiled
         {
             print($fh $data[0]);
             $recordLength = length $data[0];
-            $self -> {'GDSLENGTH'} += $recordLength;
+            $self -> {'BytesDone'} += $recordLength;
         }
     }
     else #if ($type ne 'RECORD') 
@@ -1634,7 +1650,7 @@ sub printGds2Record #: Profiled
             my $slen = length $data;
             $length = $slen + ($slen % 2); ## needs to be an even number
         }
-        $self -> {'GDSLENGTH'} += $length;
+        $self -> {'BytesDone'} += $length;
         if ($isLittleEndian)
         {
             $recordLength = pack 'v',($length + 4);
@@ -1688,10 +1704,10 @@ sub printGds2Record #: Profiled
             foreach my $num (@data)
             {
                 $real = $num;
-                $negative = 0;
+                $negative = FALSE;
                 if($num < 0.0) 
                 {
-                    $negative = 1;
+                    $negative = TRUE;
                     $real = 0 - $num;
                 }
 
@@ -1799,11 +1815,11 @@ sub readGds2Record #: Profiled
 sub readGds2RecordHeader #: Profiled
 {
     my $self = shift;
-    $self -> skipGds2RecordData() if (($self -> {'HEADER'} >= 0) && (! $self -> {'INDATA'})) ; # in HEADER not in data
+    $self -> skipGds2RecordData() if (($self -> {'HEADER'} == FALSE) && (! $self -> {'INDATA'})) ; # in HEADER not in data
     $self -> {'Record'} = '';
     $self -> {'RecordType'} = -1;
-    $self -> {'HEADER'} = 1;
-    $self -> {'INDATA'} = 0;
+    $self -> {'HEADER'} = TRUE;
+    $self -> {'INDATA'} = FALSE;
     return '' if ($self -> {'EOLIB'}); ## no sense reading null padding..
     my $data;
     if (read($self -> {'FileHandle'},$data,2)) ### length
@@ -1811,7 +1827,7 @@ sub readGds2RecordHeader #: Profiled
         $data = reverse $data if ($isLittleEndian);
         $self -> {'Record'} = $data;
         $self -> {'Length'} = unpack 'S',$data; 
-        $self -> {'GDSLENGTH'} += $self -> {'Length'};
+        $self -> {'BytesDone'} += $self -> {'Length'};
     }
     else
     {
@@ -1823,17 +1839,17 @@ sub readGds2RecordHeader #: Profiled
         $data = reverse $data if ($isLittleEndian);
         $self -> {'Record'} .= $data;
         $self -> {'RecordType'} = unpack 'C',$data; 
-        $self -> {'EOLIB'} = 1 if (($self -> {'RecordType'}) == ENDLIB);
+        $self -> {'EOLIB'} = TRUE if (($self -> {'RecordType'}) == ENDLIB);
 
         if ($self -> {'UsingPrettyPrint'})
         {
-            $StrSpace = ''   if (($self -> {'RecordType'}) == ENDSTR);
-            $StrSpace = '  ' if (($self -> {'RecordType'}) == BGNSTR);
+            putStrSpace('')   if (($self -> {'RecordType'}) == ENDSTR);
+            putStrSpace('  ') if (($self -> {'RecordType'}) == BGNSTR);
 
-            $ElmSpace = '  ' if ((($self -> {'RecordType'}) == TEXT) || (($self -> {'RecordType'}) == PATH) || 
+            putElmSpace('  ') if ((($self -> {'RecordType'}) == TEXT) || (($self -> {'RecordType'}) == PATH) || 
                                  (($self -> {'RecordType'}) == BOUNDARY) || (($self -> {'RecordType'}) == SREF) || 
                                  (($self -> {'RecordType'}) == AREF));
-            $ElmSpace = ''   if (($self -> {'RecordType'}) == ENDEL);
+            putElmSpace('')   if (($self -> {'RecordType'}) == ENDEL);
         }
     }
     else
@@ -1873,14 +1889,14 @@ sub readGds2RecordHeader #: Profiled
 sub readGds2RecordData #: Profiled
 {
     my $self = shift;
-    $self -> readGds2RecordHeader() if ($self -> {'HEADER'} <= 0);
+    $self -> readGds2RecordHeader() if ($self -> {'HEADER'} == FALSE);
     return $self -> {'Record'} if ($self -> {'DataType'} == NO_DATA); # no sense going on...
-    $self -> {'HEADER'} = 0; # not in HEADER
-    $self -> {'INDATA'} = 1; # rather in DATA
-    my $resolution = $self -> {'Resolution'};
-    my $bytesLeft = $self -> {'Length'} - 4; ## 4 should have been just read by readGds2RecordHeader
-    $self -> {'RecordData'} = ('');
+    $self -> {'HEADER'} = FALSE; # not in HEADER
+    $self -> {'INDATA'} = TRUE;  # rather in DATA
+    $self -> {'RecordData'} = '';
+    $self -> {'RecordData'} = ();
     $self -> {'CurrentDataList'} = '';
+    my $bytesLeft = $self -> {'Length'} - 4; ## 4 should have been just read by readGds2RecordHeader
     my $data;
     if ($self -> {'DataType'} == BIT_ARRAY)     ## bit array 
     {
@@ -1934,6 +1950,7 @@ sub readGds2RecordData #: Profiled
     }
     elsif ($self -> {'DataType'} == REAL_8)  ## 8 byte real
     {
+        my $resolution = $self -> {'Resolution'};
         my $tmpListString = ''; 
         my $i = 0;
         my ($negative,$exponent,$mantdata,$byteString,$byte,$mantissa,$real);
@@ -1967,8 +1984,14 @@ sub readGds2RecordData #: Profiled
             $real = (0 - $real) if ($negative);
             if ($RecordTypeStrings[$self -> {'RecordType'}] eq 'UNITS')
             {
-                $self -> {'UUnits'} = $real if ($self -> {'UUnits'} == 0);
-                $self -> {'DBUnits'} = $real if ($self -> {'DBUnits'} == 0);
+                if ($self -> {'UUnits'} == 0)
+                {
+                    $self -> {'UUnits'} = $real;
+                }
+                elsif ($self -> {'DBUnits'} == 0)
+                {
+                    $self -> {'DBUnits'} = $real;
+                }
             }
             else
             {
@@ -2051,11 +2074,15 @@ sub returnRecordAsString() #: Profiled
 {
     my $self = shift;
     my $string = '';
-    $self -> {'UsingPrettyPrint'} = 1;
-    $string .= $StrSpace if ($self -> {'RecordType'} != BGNSTR);
-    $string .= $ElmSpace if (!(($self -> {'RecordType'} == TEXT) || ($self -> {'RecordType'} == PATH) || 
-                               ($self -> {'RecordType'} == BOUNDARY) || ($self -> {'RecordType'} == SREF) || 
-                               ($self -> {'RecordType'} == AREF)));
+    $self -> {'UsingPrettyPrint'} = TRUE;
+    $string .= getStrSpace() if ($self -> {'RecordType'} != BGNSTR);
+    $string .= getElmSpace() if (!(
+                    ($self -> {'RecordType'} == TEXT) ||
+                    ($self -> {'RecordType'} == PATH) || 
+                    ($self -> {'RecordType'} == BOUNDARY) ||
+                    ($self -> {'RecordType'} == SREF) || 
+                    ($self -> {'RecordType'} == AREF)
+                ));
     my $recordType = $RecordTypeStrings[$self -> {'RecordType'}];
     $string .= $recordType;
     my $i = 0;
@@ -2117,29 +2144,39 @@ sub returnXyAsArray() #: Profiled
     my $asInteger = $arg{'-asInteger'};
     if (! defined $asInteger)
     {
-        $asInteger = 1;
+        $asInteger = TRUE;
     }
     my $withClosure = $arg{'-withClosure'};
     if (! defined $withClosure)
     {
-        $withClosure = 1;
+        $withClosure = TRUE;
     }
     my @xys=();
     if ($self -> isXy)
     {
         my $i = 0;
         my $stopPoint = $self -> {'DataIndex'};
-        $stopPoint -= 2 if (! $withClosure);
+        if ($withClosure)
+        {
+            return @{$self -> {'RecordData'}} if ($asInteger);
+        }
+        else
+        {
+            $stopPoint -= 2;
+        }
+        my $num=5;
         while ($i <= $stopPoint)
         {
             if ($asInteger)
             {
-                push @xys,($self -> {'RecordData'}[$i]);
+                $num = $self -> {'RecordData'}[$i];
+                push @xys,$num;
             }
             else
             {
-                push @xys,($self -> {'RecordData'}[$i]*($self -> {'UUnits'}));
+                $num = ($self -> {'RecordData'}[$i]) * ($self -> {'UUnits'});
             }
+            push @xys,$num;
             $i++;
         }
     }
@@ -2175,11 +2212,15 @@ sub returnRecordAsPerl() #: Profiled
         $PGR = 'printGds2Record';
     }
     my $string = '';
-    $self -> {'UsingPrettyPrint'} = 1;
-    $string .= $StrSpace if ($self -> {'RecordType'} != BGNSTR);
-    $string .= $ElmSpace if (!(($self -> {'RecordType'} == TEXT) || ($self -> {'RecordType'} == PATH) || 
-                               ($self -> {'RecordType'} == BOUNDARY) || ($self -> {'RecordType'} == SREF) || 
-                               ($self -> {'RecordType'} == AREF)));
+    $self -> {'UsingPrettyPrint'} = TRUE;
+    $string .= getStrSpace() if ($self -> {'RecordType'} != BGNSTR);
+    $string .= getElmSpace() if (!(
+                        ($self -> {'RecordType'} == TEXT) ||
+                        ($self -> {'RecordType'} == PATH) || 
+                        ($self -> {'RecordType'} == BOUNDARY) ||
+                        ($self -> {'RecordType'} == SREF) || 
+                        ($self -> {'RecordType'} == AREF)
+                    ));
     if (
         ($self -> {'RecordType'} == TEXT) || 
         ($self -> {'RecordType'} == PATH) || 
@@ -4011,8 +4052,8 @@ sub skipGds2RecordData #: Profiled
         $G_timer -> reset();
         $G_timer -> start('skipGds2RecordData');
     }
-    $self -> {'HEADER'} = 0;
-    $self -> {'INDATA'} = 1;
+    $self -> {'HEADER'} = FALSE;
+    $self -> {'INDATA'} = TRUE;
     ## 4 should have been just read by readGds2RecordHeader
     seek($self -> {'FileHandle'},$self -> {'Length'} - 4,SEEK_CUR); ## seek seems to run a little faster than read
     $self -> {'DataIndex'} = -1;
@@ -4118,7 +4159,7 @@ sub posAngle($) #: Profiled
 sub tellSize() #: Profiled
 {
     my $self = shift;
-    $self -> {'GDSLENGTH'};
+    $self -> {'BytesDone'};
 }
 
 ################################################################################
@@ -4140,12 +4181,34 @@ sub revision() ## GDS2::revision();
     return $GDS2::revision;
 }
 
+sub getElmSpace
+{
+    return $ElmSpace;
+}
+################################################################################
+
+sub putElmSpace
+{
+    $ElmSpace = shift;
+}
+################################################################################
+
+sub getStrSpace
+{
+    return $StrSpace;
+}
+################################################################################
+
+sub putStrSpace
+{
+    $StrSpace = shift;
+}
+################################################################################
 
 1;
 }
 
 ################################################################################
-
 __END__
 
 =pod

@@ -1,3 +1,4 @@
+Build.PL
 Changes
 Examples/act_folder.xpm
 Examples/file.xpm
@@ -6,16 +7,16 @@ Examples/gds2dump
 Examples/gds2dumptk
 Examples/gdsdump2gds
 Examples/gdslayers
-Examples/modgds2
 Examples/gdspath4topath0
+Examples/modgds2
 Examples/textfile.xpm
-GDS2.pm
 INSTALL
 MANIFEST
-Makefile.PL
+META.yml
 README
+SIGNATURE
 TEST.dump
+lib/GDS2.pm
 t/01load.t
 t/02create.t
 t/03dump.t
-
