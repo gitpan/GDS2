@@ -8,5 +8,5 @@ Currently the I/O of the module is not too speedy. Processing
 a 10Mg file on my 800MhzPIII takes close to 3 minutes.
 
 Send feedback/suggestions to
-KenSchumack@mediaone.net
+schumack@cpan.org
 

@@ -29,3 +29,5 @@ Makefile.PL created by h2xs 1.20 with options
             to facilitate the creation of parameterized gds2 data with perl.
         ReturnRecordAsPerl was contributed by Peter Baumbach. Thanks Peter!
         
+1.2.3 Turned on use warnings line which requires 5.6 perl
+

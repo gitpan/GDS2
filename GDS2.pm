@@ -1,13 +1,13 @@
 package GDS2; 
 {
-require 5.005;
+require 5.006;
 $GDS2::VERSION = '1.2.2'; 
 ## Note: '@ ( # )' used by the what command  E.g. what GDS2.pm
-$GDS2::revision = '@(#) $RCSfile: GDS2.pm,v $ $Revision: 1.53 $ $Date: 2002-01-14 18:27:20-06 $';
+$GDS2::revision = '@(#) $RCSfile: GDS2.pm,v $ $Revision: 1.54 $ $Date: 2002-02-19 21:33:29-06 $';
 use strict;
 use Config;
 use IO::File;
-#use warnings; ## I think you need Perl 5.6 to use this 
+use warnings;
 #use Attribute::Profiled;
 no strict qw( refs );
 my $G_timer;
@@ -26,7 +26,7 @@ my $isLittleEndian = 0; #default
 $isLittleEndian = 1 if ($Config{'byteorder'} =~ m|^1|); ## mswin32 cygwin vms
 
 # POD documentation is sprinkled throughout the file in an 
-# attempt at Literate Programming style (which Perl only party supports ...
+# attempt at Literate Programming style (which Perl partly supports ...
 # see http://www.literateprogramming.com/ )
 # Search for the strings '=head' or run perldoc on this file.
 
@@ -38,7 +38,7 @@ $isLittleEndian = 1 if ($Config{'byteorder'} =~ m|^1|); ## mswin32 cygwin vms
 # must remain attached to the file.  You may modify this module as you 
 # wish, but if you create a modified version, please attach a note
 # listing the modifications you have made, and send a copy to me at 
-# KenSchumack@mediaone.net or Schumack@lsil.com
+# schumack@cpan.org
 # 
 # Contributor Modification: Peter Baumbach 2002-01-11
 # returnRecordAsPerl() was created to facilitate the creation of
@@ -337,7 +337,7 @@ GDS2 - GDS2 stream module
 This is GDS2, a module for quickly creating programs to read and/or write GDS2 files.
 
 Send feedback/suggestions to
-KenSchumack@mediaone.net or Schumack@lsil.com
+schumack@cpan.org
 
 
 =head1 Create Method
