@@ -7,6 +7,9 @@ now work on little endian machines too.
 Currently the I/O of the module is not too speedy. Processing
 a 10Mg file on my 800MhzPIII takes close to 3 minutes.
 
+Version 2.0 of the module will try to make use of Inline 
+and C to speed things up a bit....
+
 Send feedback/suggestions to
 schumack@cpan.org
 

@@ -1,9 +1,9 @@
 package GDS2; 
 {
 require 5.006;
-$GDS2::VERSION = '1.2.9'; 
+$GDS2::VERSION = '1.3.1'; 
 ## Note: '@ ( # )' used by the what command  E.g. what GDS2.pm
-$GDS2::revision = '@(#) $RCSfile: GDS2.pm,v $ $Revision: 1.61 $ $Date: 2002-11-12 22:50:18-06 $';
+$GDS2::revision = '@(#) $RCSfile: GDS2.pm,v $ $Revision: 1.64 $ $Date: 2003-03-21 15:32:23-06 $';
 use strict;
 use Config;
 use IO::File;
@@ -11,13 +11,15 @@ use warnings;
 #use Attribute::Profiled;
 no strict qw( refs );
 my $G_timer;
-use constant TIMER_ON => 0;
+use constant TRUE  => 1;
+use constant FALSE => 0;
+use constant TIMER_ON => FALSE;
 if (TIMER_ON)
 {
     #use Benchmark::Timer;
     $G_timer = new Benchmark::Timer;
 }
-my $haveFlock=1; ## some systems still may not have this...manually change
+my $haveFlock=TRUE; ## some systems still may not have this...manually change
 if ($haveFlock)
 {
     use Fcntl q(:flock);  # import LOCK_* constants
@@ -33,7 +35,7 @@ $isLittleEndian = 1 if ($Config{'byteorder'} =~ m|^1|); ## mswin32 cygwin vms
 # You can run this file through either pod2man or pod2html to produce 
 # documentation in manual or html file format 
 
-# Author: Ken Schumack (c) 1999,2000,2001,2002.  All rights reserved.
+# Author: Ken Schumack (c) 1999,2000,2001,2002,2003. All rights reserved.
 # source code may be used and modified freely, but this copyright notice
 # must remain attached to the file.  You may modify this module as you 
 # wish, but if you create a modified version, please attach a note
@@ -492,11 +494,11 @@ sub printInitLib #: Profiled
     my $isoDate = $arg{'-isoDate'};
     if (! defined $isoDate)
     {
-        $isoDate = 0;
+        $isoDate = FALSE;
     }
     elsif ($isoDate != 0)
     {
-        $isoDate = 1;
+        $isoDate = TRUE;
     }
     my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime(time);
     $mon++;
@@ -533,11 +535,11 @@ sub printBgnstr #: Profiled
     my $isoDate = $arg{'-isoDate'};
     if (! defined $isoDate)
     {
-        $isoDate = 0;
+        $isoDate = FALSE;
     }
     elsif ($isoDate != 0)
     {
-        $isoDate = 1;
+        $isoDate = TRUE;
     }
     my ($csec,$cmin,$chour,$cmday,$cmon,$cyear,$cwday,$cyday,$cisdst);
     if (defined $createTime)
@@ -591,6 +593,7 @@ sub printBgnstr #: Profiled
       pathType 0 = square end
                1 = round end
                2 = square - extended 1/2 width
+               4 = custom plus variable path extension...
     width defaults to 0.0 if -width not used
 
 =cut
@@ -616,6 +619,16 @@ sub printPath #: Profiled
     {
         $pathType=0;
     }
+    my $bgnExtn = $arg{'-bgnExtn'};
+    if (! defined $bgnExtn)
+    {
+        $bgnExtn=0;
+    }
+    my $endExtn = $arg{'-endExtn'};
+    if (! defined $endExtn)
+    {
+        $endExtn=0;
+    }
     my $unitWidth = $arg{'-unitWidth'};
     my $widthReal = $arg{'-width'};
     my $width = 0;
@@ -629,8 +642,8 @@ sub printPath #: Profiled
     }
     #### -xyInt most useful if reading and modifying... -xy if creating from scratch
     my $xyInt = $arg{'-xyInt'}; ## $xyInt should be a reference to an array of internal GDS2 format integers
-    my $xy = $arg{'-xy'}; ## $xy should be a reference to an array of reals
-    my @xyTmp=(); ##don't pollute array passed in
+    my $xy = $arg{'-xy'};       ## $xy should be a reference to an array of reals
+    my @xyTmp=();               ##don't pollute array passed in
     if (! ((defined $xy) || (defined $xyInt)))
     {
         die "printPath expects an xy array reference. Missing -xy => \\\@array $!";
@@ -645,10 +658,85 @@ sub printPath #: Profiled
     $self -> printGds2Record(-type => 'DATATYPE',-data => $dataType);
     $self -> printGds2Record(-type => 'PATHTYPE',-data => $pathType) if ($pathType);
     $self -> printGds2Record(-type => 'WIDTH',-data => $width) if ($width);
+    if ($pathType == 4)
+    {
+        $self -> printGds2Record(-type => 'BGNEXTN',-data => $bgnExtn); ## int used with resolution
+        $self -> printGds2Record(-type => 'ENDEXTN',-data => $endExtn); ## int used with resolution
+    }
     for(my $i=0;$i<=$#$xy;$i++) ## e.g. 3.4 in -> 3400 out
     {
         if ($xy -> [$i] >= 0) { push @xyTmp,int((($xy -> [$i])*$resolution)+$G_epsilon);}
         else                  { push @xyTmp,int((($xy -> [$i])*$resolution)-$G_epsilon);}
+    }
+    if ($bgnExtn || $endExtn) ## we have to convert
+    {
+        my $bgnX1 = $xyTmp[0];
+        my $bgnY1 = $xyTmp[1];
+        my $bgnX2 = $xyTmp[2];
+        my $bgnY2 = $xyTmp[3];
+        my $endX1 = $xyTmp[$#xyTmp - 1];
+        my $endY1 = $xyTmp[$#xyTmp];
+        my $endX2 = $xyTmp[$#xyTmp - 3];
+        my $endY2 = $xyTmp[$#xyTmp - 2];
+        if ($bgnExtn)
+        {
+            if ($bgnX1 == $bgnX2) #vertical ...modify 1st Y
+            {
+                if ($bgnY1 < $bgnY2) ## points down
+                {
+                    $xyTmp[1] -= $bgnExtn;
+                    $xyTmp[1] += int($width/2) if ($pathType != 0);
+                }
+                else ## points up
+                {
+                    $xyTmp[1] += $bgnExtn;
+                    $xyTmp[1] -= int($width/2) if ($pathType != 0);
+                }
+            }
+            elsif ($bgnY1 == $bgnY2) #horizontal ...modify 1st X
+            {
+                if ($bgnX1 < $bgnX2) ## points left
+                {
+                    $xyTmp[0] -= $bgnExtn;
+                    $xyTmp[0] += int($width/2) if ($pathType != 0);
+                }
+                else ## points up
+                {
+                    $xyTmp[0] += $bgnExtn;
+                    $xyTmp[0] -= int($width/2) if ($pathType != 0);
+                }
+            }
+        }
+
+        if ($endExtn)
+        {
+            if ($endX1 == $endX2) #vertical ...modify last Y
+            {
+                if ($endY1 < $endY2) ## points down
+                {
+                    $xyTmp[$#xyTmp] -= $endExtn;
+                    $xyTmp[$#xyTmp] += int($width/2) if ($pathType != 0);
+                }
+                else ## points up
+                {
+                    $xyTmp[$#xyTmp] += $endExtn;
+                    $xyTmp[$#xyTmp] -= int($width/2) if ($pathType != 0);
+                }
+            }
+            elsif ($endY1 == $endY2) #horizontal ...modify last X
+            {
+                if ($endX1 < $endX2) ## points left
+                {
+                    $xyTmp[$#xyTmp - 1] -= $endExtn;
+                    $xyTmp[$#xyTmp - 1] += int($width/2) if ($pathType != 0);
+                }
+                else ## points up
+                {
+                    $xyTmp[$#xyTmp - 1] += $endExtn;
+                    $xyTmp[$#xyTmp - 1] -= int($width/2) if ($pathType != 0);
+                }
+            }
+        }
     }
     $self -> printGds2Record(-type => 'XY',-data => \@xyTmp);
     $self -> printGds2Record(-type => 'ENDEL');
@@ -748,7 +836,7 @@ sub printBoundary #: Profiled
 sub printSref #: Profiled
 {
     my($self,%arg) = @_;
-    my $useSTRANS=0;
+    my $useSTRANS=FALSE;
     my $resolution = $self -> {'Resolution'};
     my $sname = $arg{'-name'};
     if (! defined $sname)
@@ -777,7 +865,7 @@ sub printSref #: Profiled
     else
     {
         $reflect=1;
-        $useSTRANS=1;
+        $useSTRANS=TRUE;
     }
     my $mag = $arg{'-mag'};
     if ((! defined $mag)||($mag <= 0))
@@ -786,7 +874,7 @@ sub printSref #: Profiled
     }
     else
     {
-        $useSTRANS=1;
+        $useSTRANS=TRUE;
     }
     my $angle = $arg{'-angle'};
     if (! defined $angle)
@@ -796,7 +884,7 @@ sub printSref #: Profiled
     else
     { 
         $angle=posAngle($angle);
-        $useSTRANS=1;
+        $useSTRANS=TRUE;
     }
     if ($useSTRANS)
     {
@@ -841,7 +929,7 @@ sub printSref #: Profiled
 sub printAref #: Profiled
 {
     my($self,%arg) = @_;
-    my $useSTRANS=0;
+    my $useSTRANS=FALSE;
     my $resolution = $self -> {'Resolution'};
     my $sname = $arg{'-name'};
     if (! defined $sname)
@@ -870,7 +958,7 @@ sub printAref #: Profiled
     else
     {
         $reflect=1;
-        $useSTRANS=1;
+        $useSTRANS=TRUE;
     }
     my $mag = $arg{'-mag'};
     if ((! defined $mag)||($mag <= 0))
@@ -879,7 +967,7 @@ sub printAref #: Profiled
     }
     else
     {
-        $useSTRANS=1;
+        $useSTRANS=TRUE;
     }
     my $angle = $arg{'-angle'};
     if (! defined $angle)
@@ -889,7 +977,7 @@ sub printAref #: Profiled
     else
     {
         $angle=posAngle($angle);
-        $useSTRANS=1;
+        $useSTRANS=TRUE;
     }
     if ($useSTRANS)
     {
@@ -959,7 +1047,7 @@ sub printAref #: Profiled
 sub printText #: Profiled
 {
     my($self,%arg) = @_;
-    my $useSTRANS=0;
+    my $useSTRANS=FALSE;
     my $string = $arg{'-string'};
     if (! defined $string)
     {
@@ -1024,7 +1112,7 @@ sub printText #: Profiled
     else
     {
         $reflect=1;
-        $useSTRANS=1;
+        $useSTRANS=TRUE;
     }
 
     my $font = $arg{'-font'};
@@ -3003,7 +3091,7 @@ sub printXy #: Profiled
 
 ################################################################################
 
-=head2 returnDatatype - returns datatype # if record is DATATYPe else returns -1
+=head2 returnDatatype - returns datatype # if record is DATATYPE else returns -1
 
   usage:
     $dataTypesFound[$gds2File -> returnDatatype] = 1;
@@ -3015,6 +3103,21 @@ sub returnDatatype #: Profiled
     my $self = shift;
     ## 2 byte signed integer
     if ($self -> isDatatype) { $self -> {'RecordData'}[0]; }
+    else { -1; }
+}
+################################################################################
+
+=head2 returnPathtype - returns pathtype # if record is PATHTYPE else returns -1
+
+  usage:
+
+=cut
+
+sub returnPathtype #: Profiled
+{
+    my $self = shift;
+    ## 2 byte signed integer
+    if ($self -> isPathtype) { $self -> {'RecordData'}[0]; }
     else { -1; }
 }
 ################################################################################
@@ -3035,6 +3138,22 @@ sub returnTexttype #: Profiled
 }
 ################################################################################
 
+=head2 returnWidth - returns width # if record is WIDTH else returns -1 
+
+  usage:
+
+=cut
+
+sub returnWidth #: Profiled
+{
+    my $self = shift;
+    ## 4 byte signed integer
+    if ($self -> isWidth) { $self -> {'RecordData'}[0]; }
+    else { -1; }
+}
+################################################################################
+
+
 =head2 returnLayer - returns layer # if record is LAYER else returns -1
 
   usage:
@@ -3048,6 +3167,36 @@ sub returnLayer #: Profiled
     ## 2 byte signed integer
     if ($self -> isLayer) { $self -> {'RecordData'}[0]; }
     else { -1; }
+}
+################################################################################
+
+=head2 returnBgnextn - returns bgnextn if record is BGNEXTN else returns 0
+
+  usage:
+
+=cut
+
+sub returnBgnextn #: Profiled
+{
+    my $self = shift;
+    ## 2 byte signed integer
+    if ($self -> isBgnextn) { $self -> {'RecordData'}[0]; }
+    else { 0; }
+}
+################################################################################
+
+=head2 returnEndextn- returns endextn if record is ENDEXTN else returns 0
+
+  usage:
+
+=cut
+
+sub returnEndextn #: Profiled
+{
+    my $self = shift;
+    ## 2 byte signed integer
+    if ($self -> isEndextn) { $self -> {'RecordData'}[0]; }
+    else { 0; }
 }
 ################################################################################
 
@@ -3953,7 +4102,7 @@ sub posAngle($) #: Profiled
 {
     my $angle = shift;
     $angle += 360.0 while ($angle < 0.0);
-    $angle %= 360.0;
+    $angle -= 360.0 while ($angle >= 360.0);
     $angle;
 }
 
@@ -4143,7 +4292,7 @@ __END__
  #  <boundary>::=      BOUNDARY [ELFLAGS] [PLEX] LAYER DATATYPE XY              #
  #                                                                              #
  #  <path>::=          PATH [ELFLAGS] [PLEX] LAYER DATATYPE [PATHTYPE]          #
- #                     [WIDTH] XY                                               #
+ #                     [WIDTH] [BGNEXTN] [ENDEXTN] [XY]                         #
  #                                                                              #
  #  <SREF>::=          SREF [ELFLAGS] [PLEX] SNAME [<strans>] XY                #
  #                                                                              #

@@ -7,6 +7,7 @@ Examples/gds2dumptk
 Examples/gdsdump2gds
 Examples/gdslayers
 Examples/modgds2
+Examples/gdspath4topath0
 Examples/textfile.xpm
 GDS2.pm
 INSTALL
