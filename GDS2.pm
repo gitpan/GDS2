@@ -1,9 +1,9 @@
 package GDS2; 
 {
 require 5.006;
-$GDS2::VERSION = '1.2.6'; 
+$GDS2::VERSION = '1.2.7'; 
 ## Note: '@ ( # )' used by the what command  E.g. what GDS2.pm
-$GDS2::revision = '@(#) $RCSfile: GDS2.pm,v $ $Revision: 1.57 $ $Date: 2002-03-27 23:25:45-06 $';
+$GDS2::revision = '@(#) $RCSfile: GDS2.pm,v $ $Revision: 1.58 $ $Date: 2002-03-31 02:22:45-06 $';
 use strict;
 use Config;
 use IO::File;
@@ -401,6 +401,7 @@ sub new #: Profiled
     binmode $fileHandle,':raw'; ## may need Perl 5.6 for discipline
     $self -> {'FileHandle'} = $fileHandle;
     $self -> {'FileName'}   = $fileName; ## the gds2 filename
+    $self -> {'GDSLENGTH'}  = 0;         ## total file size so far
     $self -> {'EOLIB'}      = 0;         ## end of library flag
     $self -> {'HEADER'}     = -1;        ## in header flag
     $self -> {'INDATA'}     = 0;         ## in data flag
@@ -426,7 +427,10 @@ sub new #: Profiled
   usage:
   $gds2File -> close;
    -or-
-  $gds2File -> close(-markEnd=>1); ## experimental     -- some systems have trouble closing files
+  $gds2File -> close(-markEnd=>1); ## experimental  -- some systems have trouble closing files
+  $gds2File -> close(-pad=>2048);  ## experimental  -- pad end with \0's till file size is a 
+                                   ## multiple of number. Note: old reel to reel tapes on Calma
+                                   ## systems used 2048 byte blocks
 
 =cut
 
@@ -434,12 +438,25 @@ sub close #: Profiled
 {
     my($self,%arg) = @_;
     my $markEnd = $arg{'-markEnd'};
+    my $pad = $arg{'-pad'};
     if ((defined $markEnd)&&($markEnd))
     {
         my $fh = $self -> {'FileHandle'};
         print $fh "\x1a\x04"; # a ^Z and a ^D
+        $self -> {'GDSLENGTH'} += 2;
     }
-    close $self -> {'FileHandle'};
+    if ((defined $pad)&&($pad > 0))
+    {
+        my $fh = $self -> {'FileHandle'};
+        my $fileSize = $self -> tellSize;
+        my $padSize = $pad - ($fileSize % $pad);
+        $padSize=0 if ($padSize == $pad);
+        for (my $i=0; $i < $padSize; $i++)
+        {
+            print $fh "\0"; ## a null
+        }
+    }
+    $self -> {'FileHandle'} -> close;
 }
 ################################################################################
 
@@ -1354,12 +1371,14 @@ sub printGds2Record #: Profiled
     die "printGds2Record can not handle both -data and -asciiData options $!" if ((defined $dataString)&&((defined $data[0])&&($data[0] ne '')));
 
     my $data = '';
+    my $recordLength; ## 1st 2 bytes for length 3rd for recordType 4th for dataType
     if ($type eq 'RECORD') ## special case...
     {
         if ($isLittleEndian)
         {
             my $length = substr($data[0],0,2);
-            my $recordLength = unpack 'v',$length;
+            $recordLength = unpack 'v',$length;
+            $self -> {'GDSLENGTH'} += $recordLength;
             $length = reverse $length;
             print($fh $length);
 
@@ -1432,6 +1451,8 @@ sub printGds2Record #: Profiled
         else
         {
             print($fh $data[0]);
+            $recordLength = length $data[0];
+            $self -> {'GDSLENGTH'} += $recordLength;
         }
     }
     else #if ($type ne 'RECORD') 
@@ -1530,7 +1551,7 @@ sub printGds2Record #: Profiled
             my $slen = length $data;
             $length = $slen + ($slen % 2); ## needs to be an even number
         }
-        my $recordLength; ## 1st 2 bytes for length 3rd for recordType 4th for dataType
+        $self -> {'GDSLENGTH'} += $length;
         if ($isLittleEndian)
         {
             $recordLength = pack 'v',($length + 4);
@@ -1635,7 +1656,7 @@ sub printGds2Record #: Profiled
 =head2 printRecord - prints a record just read 
 
   usage:
-    gds2File -> printRecord(
+    $gds2File -> printRecord(
                   -data => $record 
                 );
 
@@ -1707,6 +1728,7 @@ sub readGds2RecordHeader #: Profiled
         $data = reverse $data if ($isLittleEndian);
         $self -> {'Record'} = $data;
         $self -> {'Length'} = unpack 'S',$data; 
+        $self -> {'GDSLENGTH'} += $self -> {'Length'};
     }
     else
     {
@@ -1991,7 +2013,7 @@ sub returnRecordAsString() #: Profiled
 =head2 returnXyAsArray - returns current (read) XY record as an array
 
   usage:
-    gds2File -> returnXyAsArray(
+    $gds2File -> returnXyAsArray(
                     -asInteger => 0|1  ## (optional) default is true. Return integer 
                                        ## array or if false return array of reals.
                     -withClosure => 0|1  ## (optional) default is true. Whether to 
@@ -2136,7 +2158,7 @@ sub returnRecordAsPerl() #: Profiled
 =head2 printAngle - prints ANGLE record
 
   usage:
-    gds2File -> printAngle(-num=>#.#);
+    $gds2File -> printAngle(-num=>#.#);
 
 =cut
 
@@ -2153,7 +2175,7 @@ sub printAngle #: Profiled
 =head2 printAttrtable - prints ATTRTABLE record
 
   usage:
-    gds2File -> printAttrtable(-string=>$string);
+    $gds2File -> printAttrtable(-string=>$string);
 
 =cut
 
@@ -2172,7 +2194,7 @@ sub printAttrtable #: Profiled
 =head2 printBgnextn - prints BGNEXTN record
 
   usage:
-    gds2File -> printBgnextn(-num=>#.#);
+    $gds2File -> printBgnextn(-num=>#.#);
 
 =cut
 
@@ -2194,7 +2216,7 @@ sub printBgnextn #: Profiled
 =head2 printBgnlib - prints BGNLIB record
 
   usage:
-    gds2File -> printBgnlib(
+    $gds2File -> printBgnlib(
                             -isoDate => 0|1 ## (optional) use ISO 4 digit date 2001 vs 101
                            );
     
@@ -2222,7 +2244,7 @@ sub printBgnlib #: Profiled
 =head2 printBox - prints BOX record
 
   usage:
-    gds2File -> printBox;
+    $gds2File -> printBox;
 
 =cut
 
@@ -2236,7 +2258,7 @@ sub printBox #: Profiled
 =head2 printBoxtype - prints BOXTYPE record
 
   usage:
-    gds2File -> printBoxtype(-num=>#);
+    $gds2File -> printBoxtype(-num=>#);
 
 =cut
 
@@ -2255,7 +2277,7 @@ sub printBoxtype #: Profiled
 =head2 printColrow - prints COLROW record
 
   usage:
-    gds2File -> printBoxtype(-columns=>#, -rows=>#);
+    $gds2File -> printBoxtype(-columns=>#, -rows=>#);
 
 =cut
 
@@ -2287,7 +2309,7 @@ sub printColrow #: Profiled
 =head2 printDatatype - prints DATATYPE record
 
   usage:
-    gds2File -> printDatatype(-num=>#);
+    $gds2File -> printDatatype(-num=>#);
 
 =cut
 
@@ -2313,7 +2335,7 @@ sub printEflags #: Profiled
 =head2 printElkey - prints ELKEY record
 
   usage:
-    gds2File -> printElkey(-num=>#);
+    $gds2File -> printElkey(-num=>#);
 
 =cut
 
@@ -2343,7 +2365,7 @@ sub printEndel #: Profiled
 =head2 printEndextn - prints path end extension record
 
   usage:
-    gds2File printEndextn -> (-num=>#.#);
+    $gds2File printEndextn -> (-num=>#.#);
 
 =cut
 
@@ -2398,7 +2420,7 @@ sub printEndmasks #: Profiled
 =head2 printFonts - prints a FONTS record
 
   usage:
-    gds2File -> printFonts(-string=>'names_of_font_files');
+    $gds2File -> printFonts(-string=>'names_of_font_files');
 
 =cut
 
@@ -2436,7 +2458,7 @@ sub printGenerations #: Profiled
 =head2 printHeader - Prints a rev 3 header
 
   usage:
-    gds2File -> printHeader(
+    $gds2File -> printHeader(
                   -num => #  ## optional, defaults to 3. valid revs are 0,3,4,5,and 600
                 );
 
@@ -2457,7 +2479,7 @@ sub printHeader #: Profiled
 =head2 printLayer - prints a LAYER number 
 
   usage:
-    gds2File -> printLayer(
+    $gds2File -> printLayer(
                   -num => #  ## optional, defaults to 0. 
                 );
 
@@ -2535,7 +2557,7 @@ sub printLinktype #: Profiled
 =head2 printPathtype - prints a PATHTYPE number 
 
   usage:
-    gds2File -> printPathtype(
+    $gds2File -> printPathtype(
                   -num => #  ## optional, defaults to 0. 
                 );
 
@@ -2553,7 +2575,7 @@ sub printPathtype #: Profiled
 =head2 printMag - prints a MAG number 
 
   usage:
-    gds2File -> printMag(
+    $gds2File -> printMag(
                   -num => #.#  ## optional, defaults to 0.0 
                 );
 
@@ -2590,7 +2612,7 @@ sub printNode #: Profiled
 =head2 printNodetype - prints a NODETYPE number 
 
   usage:
-    gds2File -> printNodetype(
+    $gds2File -> printNodetype(
                   -num => #  
                 );
 
@@ -2623,7 +2645,7 @@ sub printPlex #: Profiled
 =head2 printPresentation - prints a text presentation record
 
   usage:
-    gds2File -> printPresentation(
+    $gds2File -> printPresentation(
                   -font => #,  ##optional, defaults to 0, valid numbers are 0-3
                   -top, ||-middle, || -bottom, ## vertical justification
                   -left, ||-center, || -right, ## horizontal justification
@@ -2667,7 +2689,7 @@ sub printPresentation #: Profiled
 =head2 printPropattr - prints a property id number 
 
   usage:
-    gds2File -> printPropattr( -num => # );
+    $gds2File -> printPropattr( -num => # );
 
 =cut
 
@@ -2686,7 +2708,7 @@ sub printPropattr #: Profiled
 =head2 printPropvalue - prints a property value string
 
   usage:
-    gds2File -> printPropvalue( -string => $string );
+    $gds2File -> printPropvalue( -string => $string );
 
 =cut
 
@@ -2729,7 +2751,7 @@ sub printReserved #: Profiled
 =head2 printSname - prints a SNAME string
 
   usage:
-    gds2File -> printSname( -name => $cellName );
+    $gds2File -> printSname( -name => $cellName );
 
 =cut
 
@@ -2762,7 +2784,7 @@ sub printSrfname #: Profiled
 =head2 printStrans - prints a STRANS record
 
   usage:
-    gds2File -> printStrans( -reflect );
+    $gds2File -> printStrans( -reflect );
 
 =cut
 
@@ -2793,7 +2815,7 @@ sub printStrclass #: Profiled
 =head2 printString - prints a STRING record
 
   usage:
-    gds2File -> printSname( -string => $text );
+    $gds2File -> printSname( -string => $text );
 
 =cut
 
@@ -2812,7 +2834,7 @@ sub printString #: Profiled
 =head2 printStrname - prints a structure name string
 
   usage:
-    gds2File -> printStrname( -name => $cellName );
+    $gds2File -> printStrname( -name => $cellName );
 
 =cut
 
@@ -2881,7 +2903,7 @@ sub printTextnode #: Profiled
 =head2 printTexttype - prints a text type number 
 
   usage:
-    gds2File -> printTexttype( -num => # );
+    $gds2File -> printTexttype( -num => # );
 
 =cut
 
@@ -2928,7 +2950,7 @@ sub printUstring #: Profiled
 =head2 printPropattr - prints a width number 
 
   usage:
-    gds2File -> printWidth( -num => # );
+    $gds2File -> printWidth( -num => # );
 
 =cut
 
@@ -2947,7 +2969,7 @@ sub printWidth #: Profiled
 =head2 printXy - prints an XY array 
 
   usage:
-    gds2File -> printXy( -xy => \@array );
+    $gds2File -> printXy( -xy => \@array );
 
 =cut
 
@@ -3908,6 +3930,20 @@ sub posAngle($) #: Profiled
     $angle;
 }
 
+=head2 tellSize - return current byte position (NOT zero based)
+
+  usage:
+    my $position = $gds2File -> tellSize;
+
+
+=cut
+
+################################################################################
+sub tellSize() #: Profiled
+{
+    my $self = shift;
+    $self -> {'GDSLENGTH'};
+}
 
 ################################################################################
 sub subbyte() ## GDS2::version();
