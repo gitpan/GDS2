@@ -11,18 +11,18 @@ and relatively untested.
 
 EOP
 
-print "Do you want to use Inline::C code? (Y/n): ";
+print "Do you want to use Inline::C code? (y/N): ";
 
 my $response = <STDIN>;
-if ($response =~ m/^[nN]/)
-{
-    $response = 'no';
-    print "\nMaking version of GDS2.pm with C code off....";
-}
-else
+if ($response =~ m/^[yY]/)
 {
     $response = 'yes';
     print "\nMaking version of GDS2.pm with C code on....";
+}
+else
+{
+    $response = 'no';
+    print "\nMaking version of GDS2.pm with C code off....";
 }
 
 rename "lib/GDS2.pm","lib/GDS2.pm.original";

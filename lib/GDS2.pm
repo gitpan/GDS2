@@ -1,7 +1,7 @@
 package GDS2; 
 {
 require 5.006;
-$GDS2::VERSION = '2.03'; 
+$GDS2::VERSION = '2.04'; 
 ## Note: '@ ( # )' used by the what command  E.g. what GDS2.pm
 $GDS2::revision = '@(#) $RCSfile: GDS2.pm,v $ $Revision: 2.9 $ $Date: 2003-12-10 21:12:53-06 $';
 #
@@ -19,6 +19,10 @@ idea for improvements. You can reach me at Schumack@cpan.org
 
 =cut
 
+# 
+# Contributor Modification: Toby Schaffer 2004-01-21
+# returnUnitsAsArray() added which returns user units and database 
+# units as a 2 element array.
 # 
 # Contributor Modification: Peter Baumbach 2002-01-11
 # returnRecordAsPerl() was created to facilitate the creation of
@@ -42,7 +46,7 @@ BEGIN
 {
     use constant TRUE  => 1;
     use constant FALSE => 0;
-    use constant USE_C        => TRUE; ## Trying for speed improvement...
+    use constant USE_C        => FALSE; ## Trying for speed improvement...
     use constant NONSTDINLINE => FALSE; ## Use for non root Inline::C results install (i.e. you don't have admin rights)
     
     use constant HAVE_FLOCK => TRUE; ## some systems still may not have this...manually change
@@ -69,16 +73,16 @@ BEGIN
     }
 }
 
-if (USE_C)                                                 #INLINEC
-{                                                          #INLINEC
-    use Inline (C    => 'DATA',                            #INLINEC
-                NAME => 'GDS2',                            #INLINEC
-                INC  => '-I/sys',                          #INLINEC
-                CLEAN_AFTER_BUILD => FALSE,                #INLINEC
-                @InlineDir, ## from BEGIN section above... #INLINEC
-               );                                          #INLINEC
-    Inline->init;                                          #INLINEC
-}                                                          #INLINEC
+#if (USE_C)                                                 #INLINEC
+#{                                                          #INLINEC
+#    use Inline (C    => 'DATA',                            #INLINEC
+#                NAME => 'GDS2',                            #INLINEC
+#                INC  => '-I/sys',                          #INLINEC
+#                CLEAN_AFTER_BUILD => FALSE,                #INLINEC
+#                @InlineDir, ## from BEGIN section above... #INLINEC
+#               );                                          #INLINEC
+#    Inline->init;                                          #INLINEC
+#}                                                          #INLINEC
 if (HAVE_FLOCK)
 {
     use Fcntl q(:flock);  # import LOCK_* constants
@@ -4395,6 +4399,37 @@ sub recordSize() #: Profiled
 {
     my $self = shift;
     $self -> {'Length'};
+}
+
+=head2 dataSize - return current record size - 4 (length of data)
+
+  usage:
+    my $dataLen = $gds2File -> dataSize;
+
+
+=cut
+
+################################################################################
+sub dataSize() #: Profiled
+{
+    my $self = shift;
+    $self -> {'Length'} - 4;
+}
+
+=head2 returnUnitsAsArray - return user units and database units as a 2 element array
+
+  usage:
+    my ($uu,$dbu) = $gds2File -> returnUnitsAsArray;
+
+
+=cut
+
+################################################################################
+sub returnUnitsAsArray
+{
+    my $self = shift;
+    if ($self -> isUnits) { ($self -> {'UUnits'}, $self -> {'DBUnits'}); }
+    else { () }
 }
 
 =head2 tellSize - return current byte position (NOT zero based)

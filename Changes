@@ -70,3 +70,6 @@ Makefile.PL created by h2xs 1.20 with options
       programs to handle GDT (Graphic Data Text format).
       Trying out Makefile.PL kludge to make CPAN happy.
 
+2.04  Added dataSize(). Added method returnUnitsAsArray() method written
+      by Toby Schaffer. Thanks Toby!
+
