@@ -1,8 +1,8 @@
 Revision history for Perl extension GDS2.
 
 Makefile.PL created by h2xs 1.20 with options
-		-X -n GDS2
-		
+        -X -n GDS2
+        
 1.0   Originally developed on big endian machines, I still have some
       work to do on the write methods for little endian machines.
 
@@ -14,5 +14,10 @@ Makefile.PL created by h2xs 1.20 with options
 
 1.2.0 Added a bunch of constants. Starting to look at speed-ups. Write
       year out as years since 1900 since Cadence pipo has problems with
-	  ISO type date (2001 v.s. 101)
+      ISO type date (2001 v.s. 101)
 
+1.2.1 Put option -isoDate in to print years as 2001 instead of 101
+      since the GDS2 spec doesn't seem to care and supports an integer
+      up to 65535. Added experimental option -markEnd to close() for 
+      David Kao to try. Fixed -width option to printPath() and added 
+      -unitWidth option for backwards compatibility.

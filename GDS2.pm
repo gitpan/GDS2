@@ -1,7 +1,7 @@
 package GDS2; 
 {
 require 5.005;
-$GDS2::VERSION = '1.2.0'; 
+$GDS2::VERSION = '1.2.1'; 
 ## Note: '@ ( # )' used by the what command  E.g. what GDS2.pm
 $GDS2::revision = '@(#) $RCSfile: GDS2.pm,v $ $Revision: 1.49 $ $Date: 2001-11-26 18:31:24-06 $';
 use strict;
@@ -421,12 +421,20 @@ sub new #: Profiled
 
   usage:
   $gds2File -> close;
+   -or-
+  $gds2File -> close(-markEnd=>1); ## experimental     -- some systems have trouble closing files
 
 =cut
 
 sub close #: Profiled
 {
-    my $self = shift;
+    my($self,%arg) = @_;
+    my $markEnd = $arg{'-markEnd'};
+    if ((defined $markEnd)&&($markEnd))
+    {
+        my $fh = $self -> {'FileHandle'};
+        print $fh "\x04";
+    }
     close $self -> {'FileHandle'};
 }
 ################################################################################
@@ -442,7 +450,9 @@ sub close #: Profiled
 =head2 printInitLib() - Does all the things needed to start a library
 
    usage:
-     $gds2File -> printInitLib(-name => "testlib"); ##writes HEADER,BGNLIB,LIBNAME,and UNITS records
+     $gds2File -> printInitLib(-name => "testlib",   ##writes HEADER,BGNLIB,LIBNAME,and UNITS records
+                               -isoDate => 0|1       ## (optional) use ISO 4 digit date 2001 vs 101
+                              );
      ## defaults to current date for library date and 1e-3 and 1e-9 for units
 
    note:
@@ -458,9 +468,18 @@ sub printInitLib #: Profiled
     {
         die "printInitLib expects a library name. Missing -name => 'name' $!";
     }
+    my $isoDate = $arg{'-isoDate'};
+    if (! defined $isoDate)
+    {
+        $isoDate = 0;
+    }
+    elsif ($isoDate != 0)
+    {
+        $isoDate = 1;
+    }
     my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime(time);
     $mon++;
-    #$year += 1900; ## Cadence documentation implies that GDS2 year should be left "as is"
+    $year += 1900 if ($isoDate); ## Cadence likes year left "as is". GDS format supports year number up to 65535 -- 101 vs 2001
     $self -> printGds2Record(-type => 'HEADER',-data => 3); ## GDS2 HEADER
     $self -> printGds2Record(-type => 'BGNLIB',-data => [$year,$mon,$mday,$hour,$min,$sec,$year,$mon,$mday,$hour,$min,$sec]);
     $self -> printGds2Record(-type => 'LIBNAME',-data => $libName);
@@ -471,7 +490,9 @@ sub printInitLib #: Profiled
 =head2 printBgnstr - Does all the things needed to start a structure definition
 
    usage:
-    $gds2File -> printBgnstr(-name => "nand3"); ## writes BGNSTR and STRNAME records
+    $gds2File -> printBgnstr(-name => "nand3" ## writes BGNSTR and STRNAME records
+                             -isoDate => 1|0  ## (optional) use ISO 4 digit date 2001 vs 101
+                             );
 
    note:
      remember to close with printEndstr()
@@ -488,6 +509,15 @@ sub printBgnstr #: Profiled
         die "bgnStr expects a structure name. Missing -name => 'name' $!";
     }
     my $createTime = $arg{'-createTime'};
+    my $isoDate = $arg{'-isoDate'};
+    if (! defined $isoDate)
+    {
+        $isoDate = 0;
+    }
+    elsif ($isoDate != 0)
+    {
+        $isoDate = 1;
+    }
     my ($csec,$cmin,$chour,$cmday,$cmon,$cyear,$cwday,$cyday,$cisdst);
     if (defined $createTime)
     {
@@ -511,6 +541,11 @@ sub printBgnstr #: Profiled
     }
     $mmon++;
 
+    if ($isoDate)
+    {
+        $cyear += 1900;  ## 2001 vs 101
+        $myear += 1900;
+    }
     $self -> printGds2Record(-type => 'BGNSTR',-data => [$cyear,$cmon,$cmday,$chour,$cmin,$csec,$myear,$mmon,$mmday,$mhour,$mmin,$msec]);
     $self -> printGds2Record(-type => 'STRNAME',-data => $strName);
 }
@@ -524,8 +559,9 @@ sub printBgnstr #: Profiled
                     -dataType=>#, ##optional
                     -pathType=>#,
                     -width=>#.#,
+                    -unitWidth=>#,    ## (optional) directly specify width in data base units (vs -width which is multipled by resolution)
                     -xy=>\@array,     ## array of reals
-                    -xyInt=>\@array,  ## array of internal ints (optional -wks better if you are modifying)
+                    -xyInt=>\@array,  ## array of internal ints (optional -wks better if you are modifying an existing GDS2 file)
                   );
 
   note:
@@ -559,10 +595,16 @@ sub printPath #: Profiled
     {
         $pathType=0;
     }
-    my $width = $arg{'-width'};
-    if ((! defined $width)||($width <= 0))
+    my $unitWidth = $arg{'-unitWidth'};
+    my $widthReal = $arg{'-width'};
+    my $width = 0;
+    if ((defined $unitWidth)&&($unitWidth >= 0))
     {
-        $width=0;
+        $width=int($unitWidth);
+    }
+    if ((defined $widthReal)&&($widthReal >= 0.0))
+    {
+        $width = int(($widthReal*$resolution)+$G_epsilon);
     }
     #### -xyInt most useful if reading and modifying... -xy if creating from scratch
     my $xyInt = $arg{'-xyInt'}; ## $xyInt should be a reference to an array of internal GDS2 format integers
@@ -599,7 +641,7 @@ sub printPath #: Profiled
                     -layer=>#,
                     -dataType=>#,
                     -xy=>\@array,     ## array of reals
-                    -xyInt=>\@array,  ## array of internal ints (optional -wks better if you are modifying)
+                    -xyInt=>\@array,  ## array of internal ints (optional -wks better if you are modifying an existing GDS2 file)
                  );
 
   note:
@@ -671,11 +713,12 @@ sub printBoundary #: Profiled
 
   usage: 
     $gds2File -> printSref(
-                    -name=>string,  ## Name of structure
-                    -angle=>#.#,    ## Default is 0.0
-                    -mag=>#.#,      ## Default is 1.0
-                    -xy=>\@array,     ## array of reals
-                    -xyInt=>\@array,  ## array of internal ints (optional -wks better if you are modifying)
+                    -name=>string,   ## Name of structure
+                    -xy=>\@array,    ## array of reals
+                    -xyInt=>\@array, ## array of internal ints (optional -wks better than -xy if you are modifying an existing GDS2 file)
+                    -angle=>#.#,     ## (optional) Default is 0.0
+                    -mag=>#.#,       ## (optional) Default is 1.0
+                    -reflect=>0|1    ## (optional)
                  );
 
   note:
@@ -761,13 +804,14 @@ sub printSref #: Profiled
 
   usage: 
     $gds2File -> printAref(
-                    -name=>string,  ## Name of structure
-                    -columns=>#,    ## Default is 1
-                    -rows=>#,       ## Default is 1
-                    -angle=>#.#,    ## Default is 0.0
-                    -mag=>#.#,      ## Default is 1.0
-                    -xy=>\@array,     ## array of reals
-                    -xyInt=>\@array,  ## array of internal ints (optional -wks better if you are modifying)
+                    -name=>string,   ## Name of structure
+                    -columns=>#,     ## Default is 1
+                    -rows=>#,        ## Default is 1
+                    -xy=>\@array,    ## array of reals
+                    -xyInt=>\@array, ## array of internal ints (optional -wks better if you are modifying an existing GDS2 file)
+                    -angle=>#.#,     ## (optional) Default is 0.0
+                    -mag=>#.#,       ## (optional) Default is 1.0
+                    -reflect=>0|1    ## (optional)
                  );
 
   note:
@@ -879,12 +923,12 @@ sub printAref #: Profiled
                     -top, or -middle, -bottom,     ##optional vertical presentation
                     -left, or -center, or -right,  ##optional horizontal presentation
                     -xy=>\@array,     ## array of reals
-                    -xyInt=>\@array,  ## array of internal ints (optional -wks better if you are modifying)
+                    -xyInt=>\@array,  ## array of internal ints (optional -wks better if you are modifying an existing GDS2 file)
                     -x=>#.#,        ## optional way of passing in x value
                     -y=>#.#,        ## optional way of passing in y value
-                    -angle=>#.#,    ## Default is 0.0
-                    -mag=>#.#,      ## Default is 1.0
-                    -reflect=>#,    ## Default is 0
+                    -angle=>#.#,    ## (optional) Default is 0.0
+                    -mag=>#.#,      ## (optional) Default is 1.0
+                    -reflect=>#,    ## (optional) Default is 0
                  );
 
   note:
@@ -995,10 +1039,6 @@ sub printText #: Profiled
     {
         $mag=0;
     }
-    else
-    {
-        $useSTRANS=1;
-    }
     my $angle = $arg{'-angle'};
     if (! defined $angle)
     {
@@ -1007,7 +1047,6 @@ sub printText #: Profiled
     else
     {
         $angle=posAngle($angle);
-        $useSTRANS=1;
     }
     $self -> printGds2Record(-type=>'TEXT');
     $self -> printGds2Record(-type=>'LAYER',-data=>$layer);
@@ -1017,9 +1056,9 @@ sub printText #: Profiled
     {
         my $data=$reflect.'000000000000000'; ## 16 'bit' string
         $self -> printGds2Record(-type=>'STRANS',-data=>$data);
-        $self -> printGds2Record(-type=>'MAG',-data=>$mag)if ($mag);
-        $self -> printGds2Record(-type=>'ANGLE',-data=>$angle)if ($angle);
     }
+    $self -> printGds2Record(-type=>'MAG',-data=>$mag) if ($mag);
+    $self -> printGds2Record(-type=>'ANGLE',-data=>$angle) if ($angle);
     $self -> printGds2Record(-type=>'XY',-data=>[$x,$y]);
     $self -> printGds2Record(-type=>'STRING',-data=>$string);
     $self -> printGds2Record(-type=>'ENDEL');
@@ -2002,14 +2041,28 @@ sub printBgnextn #: Profiled
 
 =head2 printBgnlib - prints BGNLIB record
 
+  usage:
+    gds2File -> printBgnlib(
+                            -isoDate => 0|1 ## (optional) use ISO 4 digit date 2001 vs 101
+                           );
+    
 =cut
 
 sub printBgnlib #: Profiled
 {
-    my $self = shift;
+    my($self,%arg) = @_;
+    my $isoDate = $arg{'-isoDate'};
+    if (! defined $isoDate)
+    {
+        $isoDate = 0;
+    }
+    elsif ($isoDate != 0)
+    {
+        $isoDate = 1;
+    }
     my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime(time);
     $mon++;
-    #$year += 1900; ## Cadence documentation implies that GDS2 year should be left "as is"
+    $year += 1900 if ($isoDate); ## Cadence likes year left "as is". GDS format supports year number up to 65535 -- 101 vs 2001
     $self -> printGds2Record(-type=>'BGNLIB',-data=>[$year,$mon,$mday,$hour,$min,$sec,$year,$mon,$mday,$hour,$min,$sec]);
 }
 ################################################################################
@@ -2598,7 +2651,7 @@ sub printString #: Profiled
     my $string = $arg{'-string'};
     if (! defined $string)
     {
-        die "printText expects a string. Missing -string => 'text' $!";
+        die "printString expects a string. Missing -string => 'text' $!";
     }
     $self -> printGds2Record(-type => 'STRING',-data => $string);
 }
@@ -2673,7 +2726,7 @@ sub printTextnode #: Profiled
 }
 ################################################################################
 
-=head2 printPropattr - prints a text type number 
+=head2 printTexttype - prints a text type number 
 
   usage:
     gds2File -> printTexttype( -num => # );
