@@ -1,9 +1,9 @@
 package GDS2; 
 {
 require 5.006;
-$GDS2::VERSION = '1.2.4'; 
+$GDS2::VERSION = '1.2.5'; 
 ## Note: '@ ( # )' used by the what command  E.g. what GDS2.pm
-$GDS2::revision = '@(#) $RCSfile: GDS2.pm,v $ $Revision: 1.56 $ $Date: 2002-03-27 22:21:42-06 $';
+$GDS2::revision = '@(#) $RCSfile: GDS2.pm,v $ $Revision: 1.57 $ $Date: 2002-03-27 23:25:45-06 $';
 use strict;
 use Config;
 use IO::File;
@@ -1780,6 +1780,7 @@ sub readGds2RecordData #: Profiled
     {
         $self -> {'DataIndex'}=0;
         read($self -> {'FileHandle'},$data,$bytesLeft);
+        $data = reverse $data if ($isLittleEndian);
         my $bitsLeft = $bytesLeft * 8;
         $self -> {'Record'} .= $data;
         $self -> {'RecordData'}[0] = unpack "B$bitsLeft",$data;
@@ -1952,8 +1953,17 @@ sub returnRecordAsString() #: Profiled
     my $i = 0;
     while ($i <= $self -> {'DataIndex'})
     {
-        if (
-            ($self -> {'DataType'} == BIT_ARRAY) ||
+        if ($self -> {'DataType'} == BIT_ARRAY)
+        {
+            my $bitString = $self -> {'RecordData'}[$i];
+            if ($isLittleEndian)
+            {
+                $bitString =~ m|(........)(........)|;
+                $bitString = "$2$1";
+            }
+            $string .= '  '.$bitString;
+        }
+        elsif (
             ($self -> {'DataType'} == INTEGER_2) ||
             ($self -> {'DataType'} == REAL_8)
         )
