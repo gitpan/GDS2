@@ -1,10 +1,12 @@
 package GDS2; 
 {
 require 5.004;
-$GDS2::VERSION = '1.1'; 
+$GDS2::VERSION = '1.1.1'; 
 ## Note: '@ ( # )' used by the what command  E.g. what GDS2.pm
-$GDS2::revision = '@(#) $RCSfile: GDS2.pm,v $ $Revision: 1.45 $ $Date: 2001-10-27 23:07:29-05 $';
+$GDS2::revision = '@(#) $RCSfile: GDS2.pm,v $ $Revision: 1.48 $ $Date: 2001-11-21 00:57:42-06 $';
 use strict;
+#use Attribute::Profiled;
+#use Benchmark::Timer;
 use Config;
 use IO::File;
 #use warnings; ## I think you need 5.6 to use this 
@@ -340,7 +342,7 @@ KenSchumack@mediaone.net or Schumack@lsil.com
 
 =cut
 
-sub new
+sub new #: Profiled
 {
     my($class,%arg) = @_;
     my $self = {};
@@ -414,7 +416,7 @@ sub new
 
 =cut
 
-sub close
+sub close #: Profiled
 {
     my $self = shift;
     close $self -> {'FileHandle'};
@@ -440,7 +442,7 @@ sub close
 
 =cut
 
-sub printInitLib
+sub printInitLib #: Profiled
 {
     my($self,%arg) = @_;
     my $libName = $arg{'-name'};
@@ -451,7 +453,7 @@ sub printInitLib
     my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime(time);
     $mon++;
     $year += 1900;
-    $self -> printGds2Record(-type => 'HEADER',-data => 3);
+    $self -> printGds2Record(-type => 'HEADER',-data => 3); ## GDS2 HEADER
     $self -> printGds2Record(-type => 'BGNLIB',-data => [$year,$mon,$mday,$hour,$min,$sec,$year,$mon,$mday,$hour,$min,$sec]);
     $self -> printGds2Record(-type => 'LIBNAME',-data => $libName);
     $self -> printGds2Record(-type => 'UNITS',-data => [0.001,1e-9]);
@@ -468,7 +470,7 @@ sub printInitLib
 
 =cut
 
-sub printBgnstr
+sub printBgnstr #: Profiled
 {
     my($self,%arg) = @_;
 
@@ -514,7 +516,9 @@ sub printBgnstr
                     -dataType=>#, ##optional
                     -pathType=>#,
                     -width=>#.#,
-                    -xy=>\@array);
+                    -xy=>\@array,     ## array of reals
+                    -xyInt=>\@array,  ## array of internal ints (optional -wks better if you are modifying)
+                  );
 
   note:
     layer defaults to 0 if -layer not used
@@ -528,7 +532,7 @@ sub printBgnstr
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 #  <path>::= PATH [ELFLAGS] [PLEX] LAYER DATATYPE [PATHTYPE] [WIDTH] XY
-sub printPath
+sub printPath #: Profiled
 {
     my($self,%arg) = @_;
     my $resolution = $self -> {'Resolution'};
@@ -552,17 +556,24 @@ sub printPath
     {
         $width=0;
     }
-    my $xy = $arg{'-xy'}; ## $xy should be a reference to an array
-    if (! defined $xy)
+    #### -xyInt most useful if reading and modifying... -xy if creating from scratch
+    my $xyInt = $arg{'-xyInt'}; ## $xyInt should be a reference to an array of internal GDS2 format integers
+    my $xy = $arg{'-xy'}; ## $xy should be a reference to an array of reals
+    my @xyTmp=(); ##don't pollute array passed in
+    if (! ((defined $xy) || (defined $xyInt)))
     {
         die "printPath expects an xy array reference. Missing -xy => \\\@array $!";
+    }
+    if (defined $xyInt)
+    {
+        $xy = $xyInt;
+        $resolution=1;
     }
     $self -> printGds2Record(-type => 'PATH');
     $self -> printGds2Record(-type => 'LAYER',-data => $layer);
     $self -> printGds2Record(-type => 'DATATYPE',-data => $dataType);
     $self -> printGds2Record(-type => 'PATHTYPE',-data => $pathType) if ($pathType);
     $self -> printGds2Record(-type => 'WIDTH',-data => $width) if ($width);
-    my @xyTmp=(); ##don't pollute array passed in
     for(my $i=0;$i<=$#$xy;$i++) ## e.g. 3.4 in -> 3400 out
     {
         if ($xy -> [$i] >= 0) { push @xyTmp,int((($xy -> [$i])*$resolution)+$G_epsilon);}
@@ -579,7 +590,9 @@ sub printPath
     $gds2File -> printBoundary(
                     -layer=>#,
                     -dataType=>#,
-                    -xy=>\@array);
+                    -xy=>\@array,     ## array of reals
+                    -xyInt=>\@array,  ## array of internal ints (optional -wks better if you are modifying)
+                 );
 
   note:
     layer defaults to 0 if -layer not used
@@ -589,7 +602,7 @@ sub printPath
 
 #  <boundary>::= BOUNDARY [ELFLAGS] [PLEX] LAYER DATATYPE XY
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
-sub printBoundary
+sub printBoundary #: Profiled
 {
     my($self,%arg) = @_;
     my $resolution = $self -> {'Resolution'};
@@ -603,10 +616,18 @@ sub printBoundary
     {
         $dataType=0;
     }
-    my $xy = $arg{'-xy'}; ## $xy should be a reference to an array
-    if (! defined $xy)
+    #### -xyInt most useful if reading and modifying... -xy if creating from scratch
+    my $xyInt = $arg{'-xyInt'}; ## $xyInt should be a reference to an array of internal GDS2 format integers
+    my $xy = $arg{'-xy'}; ## $xy should be a reference to an array of reals
+    my @xyTmp=(); ##don't pollute array passed in
+    if (! ((defined $xy) || (defined $xyInt)))
     {
         die "printBoundary expects an xy array reference. Missing -xy => \\\@array $!";
+    }
+    if (defined $xyInt)
+    {
+        $xy = $xyInt;
+        $resolution=1;
     }
     $self -> printGds2Record(-type => 'BOUNDARY');
     $self -> printGds2Record(-type => 'LAYER',-data => $layer);
@@ -620,7 +641,6 @@ sub printBoundary
         if ($xy -> [$i] >= 0) {$xy -> [$i] = int((($xy -> [$i])*$resolution)+$G_epsilon);}
         else                  {$xy -> [$i] = int((($xy -> [$i])*$resolution)-$G_epsilon);}
     }
-    my @xyTmp=(); ##don't pollute array passed in
     for(my $i=0;$i<=$#$xy;$i++) ## e.g. 3.4 in -> 3400 out
     {
         if ($xy -> [$i] >= 0) {push @xyTmp,int((($xy -> [$i])*$resolution)+$G_epsilon);}
@@ -646,7 +666,8 @@ sub printBoundary
                     -name=>string,  ## Name of structure
                     -angle=>#.#,    ## Default is 0.0
                     -mag=>#.#,      ## Default is 1.0
-                    -xy=>\@array,
+                    -xy=>\@array,     ## array of reals
+                    -xyInt=>\@array,  ## array of internal ints (optional -wks better if you are modifying)
                  );
 
   note:
@@ -657,7 +678,7 @@ sub printBoundary
 #<SREF>::= SREF [ELFLAGS] [PLEX] SNAME [<strans>] XY
 #  <strans>::=   STRANS [MAG] [ANGLE]
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
-sub printSref
+sub printSref #: Profiled
 {
     my($self,%arg) = @_;
     my $useSTRANS=0;
@@ -667,10 +688,17 @@ sub printSref
     {
         die "printSref expects a name string. Missing -name => 'text' $!";
     }
-    my $xy = $arg{'-xy'}; ## $xy should be a reference to an array
-    if (! defined $xy)
+    #### -xyInt most useful if reading and modifying... -xy if creating from scratch
+    my $xyInt = $arg{'-xyInt'}; ## $xyInt should be a reference to an array of internal GDS2 format integers
+    my $xy = $arg{'-xy'}; ## $xy should be a reference to an array of reals 
+    if (! ((defined $xy) || (defined $xyInt)))
     {
         die "printSref expects an xy array reference. Missing -xy => \\\@array $!";
+    }
+    if (defined $xyInt)
+    {
+        $xy = $xyInt;
+        $resolution=1;
     }
     $self -> printGds2Record(-type => 'SREF');
     $self -> printGds2Record(-type => 'SNAME',-data => $sname);
@@ -730,7 +758,8 @@ sub printSref
                     -rows=>#,       ## Default is 1
                     -angle=>#.#,    ## Default is 0.0
                     -mag=>#.#,      ## Default is 1.0
-                    -xy=>\@array,
+                    -xy=>\@array,     ## array of reals
+                    -xyInt=>\@array,  ## array of internal ints (optional -wks better if you are modifying)
                  );
 
   note:
@@ -741,7 +770,7 @@ sub printSref
 #<AREF>::= AREF [ELFLAGS] [PLEX] SNAME [<strans>] COLROW XY
 #  <strans>::= STRANS [MAG] [ANGLE]
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
-sub printAref
+sub printAref #: Profiled
 {
     my($self,%arg) = @_;
     my $useSTRANS=0;
@@ -751,10 +780,17 @@ sub printAref
     {
         die "printAref expects a sname string. Missing -name => 'text' $!";
     }
-    my $xy = $arg{'-xy'}; ## $xy should be a reference to an array
-    if (! defined $xy)
+    #### -xyInt most useful if reading and modifying... -xy if creating from scratch
+    my $xyInt = $arg{'-xyInt'}; ## $xyInt should be a reference to an array of internal GDS2 format integers
+    my $xy = $arg{'-xy'}; ## $xy should be a reference to an array of reals
+    if (! ((defined $xy) || (defined $xyInt)))
     {
         die "printAref expects an xy array reference. Missing -xy => \\\@array $!";
+    }
+    if (defined $xyInt)
+    {
+        $xy = $xyInt;
+        $resolution=1;
     }
     $self -> printGds2Record(-type => 'AREF');
     $self -> printGds2Record(-type => 'SNAME',-data => $sname);
@@ -829,11 +865,13 @@ sub printAref
   usage: 
     $gds2File -> printText(
                     -string=>string,
+                    -layer=>#,      ## Default is 0
                     -textType=>#,   ## Default is 0
                     -font=>#,       ## 0-3
                     -top, or -middle, -bottom,     ##optional vertical presentation
                     -left, or -center, or -right,  ##optional horizontal presentation
-                    -xy=>\@array,
+                    -xy=>\@array,     ## array of reals
+                    -xyInt=>\@array,  ## array of internal ints (optional -wks better if you are modifying)
                     -x=>#.#,        ## optional way of passing in x value
                     -y=>#.#,        ## optional way of passing in y value
                     -angle=>#.#,    ## Default is 0.0
@@ -850,7 +888,7 @@ sub printAref
 #  <textbody>::= TEXTTYPE [PRESENTATION] [PATHTYPE] [WIDTH] [<strans>] XY STRING
 #    <strans>::= STRANS [MAG] [ANGLE]
 ################################################################################
-sub printText
+sub printText #: Profiled
 {
     my($self,%arg) = @_;
     my $useSTRANS=0;
@@ -862,7 +900,14 @@ sub printText
     my $resolution = $self -> {'Resolution'};
     my $x = $arg{'-x'};
     my $y = $arg{'-y'};
-    my $xy = $arg{'-xy'};
+    #### -xyInt most useful if reading and modifying... -xy if creating from scratch
+    my $xyInt = $arg{'-xyInt'}; ## $xyInt should be a reference to an array of internal GDS2 format integers
+    my $xy = $arg{'-xy'}; ## $xy should be a reference to an array of reals
+    if (defined $xyInt)
+    {
+        $xy = $xyInt;
+        $resolution=1;
+    }
     if (defined $xy)
     {
         $x = $xy -> [0];
@@ -1000,7 +1045,7 @@ sub printText
 
 =cut
 
-sub saveGds2Record
+sub saveGds2Record #: Profiled
 {
     my ($self,%arg) = @_;
     my $record='';
@@ -1235,7 +1280,7 @@ sub saveGds2Record
 
 =cut
 
-sub printGds2Record
+sub printGds2Record #: Profiled
 {
     my ($self,%arg) = @_;
 
@@ -1280,16 +1325,10 @@ sub printGds2Record
                 my $lengthLeft = $recordLength - 4; ## length left
                 my $recordDataType = $RecordTypeData{$type};
 
-                if ($recordDataType == $BIT_ARRAY)
-                {
-                    my $bitLength = $lengthLeft * 8;
-                    my $value = pack("b$bitLength",$data[0]);
-                    print($fh $value);
-                }
-                elsif ($recordDataType == $INTEGER_2)
+                if (($recordDataType == $INTEGER_2) || ($recordDataType == $BIT_ARRAY))
                 {
                     my $binData = unpack 'b*',$data[0];
-                    my $intData = substr($binData,32); #skip 1st 4 bytes (length, recordType dataType):wq
+                    my $intData = substr($binData,32); #skip 1st 4 bytes (length, recordType dataType)
                     
                     my ($byteInt2String,$byte2);
                     for(my $i=0; $i<($lengthLeft/2); $i++)
@@ -1310,10 +1349,6 @@ sub printGds2Record
                         $byte4=pack 'B32',reverse($byteInt4String);
                         print($fh $byte4);
                     }
-                }
-                elsif ($recordDataType == $REAL_4)  ## 4 byte real
-                {
-                    die "4-byte reals are not supported $!";
                 }
                 elsif ($recordDataType == $REAL_8)
                 {
@@ -1336,6 +1371,10 @@ sub printGds2Record
                 elsif ($recordDataType == $ACSII_STRING)  ## ascii string (null padded)
                 {
                     print($fh pack("a$lengthLeft",substr($data[0],4)));
+                }
+                elsif ($recordDataType == $REAL_4)  ## 4 byte real
+                {
+                    die "4-byte reals are not supported $!";
                 }
             }
         }
@@ -1550,7 +1589,7 @@ sub printGds2Record
 
 =cut
 
-sub printRecord
+sub printRecord #: Profiled
 {
     my ($self,%arg) = @_;
     my $record = $arg{'-data'};
@@ -1588,7 +1627,7 @@ sub printRecord
 
 =cut
 
-sub readGds2Record 
+sub readGds2Record #: Profiled
 {
     my $self = shift;
     $self -> readGds2RecordHeader();
@@ -1597,14 +1636,14 @@ sub readGds2Record
 }
 ################################################################################
 
-=head2 readGds2RecordHeader - only reads gds2 record header section
+=head2 readGds2RecordHeader - only reads gds2 record header section (2 bytes)
 
 =cut
 
-sub readGds2RecordHeader
+sub readGds2RecordHeader #: Profiled
 {
     my $self = shift;
-    $self -> skipGds2RecordData() if (($self -> {'HEADER'} >= 0) && (! $self -> {'INDATA'})) ;
+    $self -> skipGds2RecordData() if (($self -> {'HEADER'} >= 0) && (! $self -> {'INDATA'})) ; # in HEADER not in data
     $self -> {'Record'} = '';
     $self -> {'RecordType'} = -1;
     $self -> {'HEADER'} = 1;
@@ -1614,7 +1653,7 @@ sub readGds2RecordHeader
     if (read($self -> {'FileHandle'},$data,2)) ### length
     {
         $data = reverse $data if ($isLittleEndian);
-        $self -> {'Record'} .= $data;
+        $self -> {'Record'} = $data;
         $self -> {'Length'} = unpack 'S',$data; 
     }
     else
@@ -1674,13 +1713,13 @@ sub readGds2RecordHeader
 
 =cut
 
-sub readGds2RecordData
+sub readGds2RecordData #: Profiled
 {
     my $self = shift;
     $self -> readGds2RecordHeader() if ($self -> {'HEADER'} <= 0);
     return $self -> {'Record'} if ($self -> {'DataType'} == $NO_DATA); # no sense going on...
-    $self -> {'HEADER'} = 0;
-    $self -> {'INDATA'} = 1;
+    $self -> {'HEADER'} = 0; # not in HEADER
+    $self -> {'INDATA'} = 1; # rather in DATA
     my $resolution = $self -> {'Resolution'};
     my $bytesLeft = $self -> {'Length'} - 4; ## 4 should have been just read by readGds2RecordHeader
     $self -> {'RecordData'} = ('');
@@ -1816,7 +1855,7 @@ sub readGds2RecordData
 
 =cut
 
-sub returnRecordType
+sub returnRecordType #: Profiled
 {
     my $self = shift;
     $self -> {'RecordType'};
@@ -1833,7 +1872,7 @@ sub returnRecordType
 
 =cut
 
-sub returnRecordTypeString
+sub returnRecordTypeString #: Profiled
 {
     my $self = shift;
     $RecordTypeStrings[($self -> {'RecordType'})];
@@ -1850,7 +1889,7 @@ sub returnRecordTypeString
 
 =cut
 
-sub returnRecordAsString()
+sub returnRecordAsString() #: Profiled
 {
     my $self = shift;
     my $string = '';
@@ -1902,7 +1941,7 @@ sub returnRecordAsString()
 
 =cut
 
-sub printAngle
+sub printAngle #: Profiled
 {
     my($self,%arg) = @_;
     my $angle = $arg{'-num'};
@@ -1919,7 +1958,7 @@ sub printAngle
 
 =cut
 
-sub printAttrtable
+sub printAttrtable #: Profiled
 {
     my($self,%arg) = @_;
     my $string = $arg{'-string'};
@@ -1938,7 +1977,7 @@ sub printAttrtable
 
 =cut
 
-sub printBgnextn
+sub printBgnextn #: Profiled
 {
     my($self,%arg) = @_;
     my $num = $arg{'-num'};
@@ -1957,7 +1996,7 @@ sub printBgnextn
 
 =cut
 
-sub printBgnlib
+sub printBgnlib #: Profiled
 {
     my $self = shift;
     my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime(time);
@@ -1974,7 +2013,7 @@ sub printBgnlib
 
 =cut
 
-sub printBox
+sub printBox #: Profiled
 {
     my $self = shift;
     $self -> printGds2Record(-type => 'BOX');
@@ -1988,7 +2027,7 @@ sub printBox
 
 =cut
 
-sub printBoxtype
+sub printBoxtype #: Profiled
 {
     my($self,%arg) = @_;
     my $num = $arg{'-num'};
@@ -2007,7 +2046,7 @@ sub printBoxtype
 
 =cut
 
-sub printColrow
+sub printColrow #: Profiled
 {
     my($self,%arg) = @_;
     my $columns = $arg{'-columns'};
@@ -2039,7 +2078,7 @@ sub printColrow
 
 =cut
 
-sub printDatatype
+sub printDatatype #: Profiled
 {
     my($self,%arg) = @_;
     my $dataType = $arg{'-num'};
@@ -2051,7 +2090,7 @@ sub printDatatype
 }
 ################################################################################
 
-sub printEflags
+sub printEflags #: Profiled
 {
     my $self = shift;
     die "EFLAGS type not supported $!";
@@ -2065,7 +2104,7 @@ sub printEflags
 
 =cut
 
-sub printElkey
+sub printElkey #: Profiled
 {
     my($self,%arg) = @_;
     my $num = $arg{'-num'};
@@ -2081,7 +2120,7 @@ sub printElkey
 
 =cut
 
-sub printEndel
+sub printEndel #: Profiled
 {
     my $self = shift;
     $self -> printGds2Record(-type => 'ENDEL');
@@ -2095,7 +2134,7 @@ sub printEndel
 
 =cut
 
-sub printEndextn
+sub printEndextn #: Profiled
 {
     my($self,%arg) = @_;
     my $num = $arg{'-num'};
@@ -2114,7 +2153,7 @@ sub printEndextn
 
 =cut
 
-sub printEndlib
+sub printEndlib #: Profiled
 {
     my $self = shift;
     $self -> printGds2Record(-type => 'ENDLIB');
@@ -2125,7 +2164,7 @@ sub printEndlib
 
 =cut
 
-sub printEndstr
+sub printEndstr #: Profiled
 {
     my $self = shift;
     $self -> printGds2Record(-type => 'ENDSTR');
@@ -2136,7 +2175,7 @@ sub printEndstr
 
 =cut
 
-sub printEndmasks
+sub printEndmasks #: Profiled
 {
     my $self = shift;
     $self -> printGds2Record(-type => 'ENDMASKS');
@@ -2150,7 +2189,7 @@ sub printEndmasks
 
 =cut
 
-sub printFonts
+sub printFonts #: Profiled
 {
     my($self,%arg) = @_;
     my $string = $arg{'-string'};
@@ -2162,7 +2201,7 @@ sub printFonts
 }
 ################################################################################
 
-sub printFormat
+sub printFormat #: Profiled
 {
     my($self,%arg) = @_;
     my $num = $arg{'-num'};
@@ -2174,7 +2213,7 @@ sub printFormat
 }
 ################################################################################
 
-sub printGenerations
+sub printGenerations #: Profiled
 {
     my $self = shift;
     $self -> printGds2Record(-type => 'GENERATIONS');
@@ -2190,7 +2229,7 @@ sub printGenerations
 
 =cut
 
-sub printHeader
+sub printHeader #: Profiled
 {
     my($self,%arg) = @_;
     my $rev = $arg{'-num'};
@@ -2211,7 +2250,7 @@ sub printHeader
 
 =cut
 
-sub printLayer
+sub printLayer #: Profiled
 {
     my($self,%arg) = @_;
     my $layer = $arg{'-num'};
@@ -2223,7 +2262,7 @@ sub printLayer
 }
 ################################################################################
 
-sub printLibdirsize
+sub printLibdirsize #: Profiled
 {
     my $self = shift;
     $self -> printGds2Record(-type => 'LIBDIRSIZE');
@@ -2237,7 +2276,7 @@ sub printLibdirsize
 
 =cut
 
-sub printLibname
+sub printLibname #: Profiled
 {
     my($self,%arg) = @_;
     my $libName = $arg{'-name'};
@@ -2249,14 +2288,14 @@ sub printLibname
 }
 ################################################################################
 
-sub printLibsecur
+sub printLibsecur #: Profiled
 {
     my $self = shift;
     $self -> printGds2Record(-type => 'LIBSECUR');
 }
 ################################################################################
 
-sub printLinkkeys
+sub printLinkkeys #: Profiled
 {
     my($self,%arg) = @_;
     my $num = $arg{'-num'};
@@ -2268,7 +2307,7 @@ sub printLinkkeys
 }
 ################################################################################
 
-sub printLinktype
+sub printLinktype #: Profiled
 {
     my($self,%arg) = @_;
     my $num = $arg{'-num'};
@@ -2289,7 +2328,7 @@ sub printLinktype
 
 =cut
 
-sub printPathtype
+sub printPathtype #: Profiled
 {
     my($self,%arg) = @_;
     my $pathType = $arg{'-num'};
@@ -2307,7 +2346,7 @@ sub printPathtype
 
 =cut
 
-sub printMag
+sub printMag #: Profiled
 {
     my($self,%arg) = @_;
     my $mag = $arg{'-num'};
@@ -2316,7 +2355,7 @@ sub printMag
 }
 ################################################################################
 
-sub printMask
+sub printMask #: Profiled
 {
     my($self,%arg) = @_;
     my $string = $arg{'-string'};
@@ -2328,7 +2367,7 @@ sub printMask
 }
 ################################################################################
 
-sub printNode
+sub printNode #: Profiled
 {
     my $self = shift;
     $self -> printGds2Record(-type => 'NODE');
@@ -2344,7 +2383,7 @@ sub printNode
 
 =cut
 
-sub printNodetype
+sub printNodetype #: Profiled
 {
     my($self,%arg) = @_;
     my $num = $arg{'-num'};
@@ -2356,7 +2395,7 @@ sub printNodetype
 }
 ################################################################################
 
-sub printPlex
+sub printPlex #: Profiled
 {
     my($self,%arg) = @_;
     my $num = $arg{'-num'};
@@ -2382,7 +2421,7 @@ sub printPlex
 
 =cut
 
-sub printPresentation
+sub printPresentation #: Profiled
 {
     my($self,%arg) = @_;
     my $font = $arg{'-font'};
@@ -2419,7 +2458,7 @@ sub printPresentation
 
 =cut
 
-sub printPropattr
+sub printPropattr #: Profiled
 {
     my($self,%arg) = @_;
     my $num = $arg{'-num'};
@@ -2438,7 +2477,7 @@ sub printPropattr
 
 =cut
 
-sub printPropvalue
+sub printPropvalue #: Profiled
 {
     my($self,%arg) = @_;
     my $string = $arg{'-string'};
@@ -2450,7 +2489,7 @@ sub printPropvalue
 }
 ################################################################################
 
-sub printReflibs
+sub printReflibs #: Profiled
 {
     my($self,%arg) = @_;
     my $string = $arg{'-string'};
@@ -2462,7 +2501,7 @@ sub printReflibs
 }
 ################################################################################
 
-sub printReserved
+sub printReserved #: Profiled
 {
     my($self,%arg) = @_;
     my $num = $arg{'-num'};
@@ -2481,7 +2520,7 @@ sub printReserved
 
 =cut
 
-sub printSname
+sub printSname #: Profiled
 {
     my($self,%arg) = @_;
     my $string = $arg{'-name'};
@@ -2493,14 +2532,14 @@ sub printSname
 }
 ################################################################################
 
-sub printSpacing
+sub printSpacing #: Profiled
 {
     my $self = shift;
     die "SPACING type not supported $!";
 }
 ################################################################################
 
-sub printSrfname
+sub printSrfname #: Profiled
 {
     my $self = shift;
     $self -> printGds2Record(-type => 'SRFNAME');
@@ -2514,7 +2553,7 @@ sub printSrfname
 
 =cut
 
-sub printStrans
+sub printStrans #: Profiled
 {
     my($self,%arg) = @_;
     my $reflect = $arg{'-reflect'};
@@ -2531,7 +2570,7 @@ sub printStrans
 }
 ################################################################################
 
-sub printStrclass
+sub printStrclass #: Profiled
 {
     my $self = shift;
     $self -> printGds2Record(-type => 'STRCLASS');
@@ -2545,7 +2584,7 @@ sub printStrclass
 
 =cut
 
-sub printString
+sub printString #: Profiled
 {
     my($self,%arg) = @_;
     my $string = $arg{'-string'};
@@ -2564,7 +2603,7 @@ sub printString
 
 =cut
 
-sub printStrname
+sub printStrname #: Profiled
 {
     my($self,%arg) = @_;
     my $strName = $arg{'-name'};
@@ -2576,14 +2615,14 @@ sub printStrname
 }
 ################################################################################
 
-sub printStrtype
+sub printStrtype #: Profiled
 {
     my $self = shift;
     die "STRTYPE type not supported $!";
 }
 ################################################################################
 
-sub printStyptable
+sub printStyptable #: Profiled
 {
     my($self,%arg) = @_;
     my $string = $arg{'-string'};
@@ -2595,7 +2634,7 @@ sub printStyptable
 }
 ################################################################################
 
-sub printTapecode
+sub printTapecode #: Profiled
 {
     my($self,%arg) = @_;
     my $num = $arg{'-num'};
@@ -2607,7 +2646,7 @@ sub printTapecode
 }
 ################################################################################
 
-sub printTapenum
+sub printTapenum #: Profiled
 {
     my($self,%arg) = @_;
     my $num = $arg{'-num'};
@@ -2619,7 +2658,7 @@ sub printTapenum
 }
 ################################################################################
 
-sub printTextnode
+sub printTextnode #: Profiled
 {
     my $self = shift;
     $self -> printGds2Record(-type => 'TEXTNODE');
@@ -2633,7 +2672,7 @@ sub printTextnode
 
 =cut
 
-sub printTexttype
+sub printTexttype #: Profiled
 {
     my($self,%arg) = @_;
     my $num = $arg{'-num'};
@@ -2646,7 +2685,7 @@ sub printTexttype
 }
 ################################################################################
 
-sub printUinteger
+sub printUinteger #: Profiled
 {
     my $self = shift;
     die "UINTEGER type not supported $!";
@@ -2659,14 +2698,14 @@ sub printUinteger
 
 =cut
 
-sub printUnits
+sub printUnits #: Profiled
 {
     my $self = shift;
     $self -> printGds2Record(-type => 'UNITS',-data => [0.001,1e-9]);
 }
 ################################################################################
 
-sub printUstring
+sub printUstring #: Profiled
 {
     my $self = shift;
     die "USTRING type not supported $!";
@@ -2680,7 +2719,7 @@ sub printUstring
 
 =cut
 
-sub printWidth
+sub printWidth #: Profiled
 {
     my($self,%arg) = @_;
     my $width = $arg{'-num'};
@@ -2699,15 +2738,22 @@ sub printWidth
 
 =cut
 
-sub printXy
+sub printXy #: Profiled
 {
     my($self,%arg) = @_;
-    my $xy = $arg{'-xy'}; ## $xy should be a reference to an array
-    if (! defined $xy)
+    #### -xyInt most useful if reading and modifying... -xy if creating from scratch
+    my $xyInt = $arg{'-xyInt'}; ## $xyInt should be a reference to an array of internal GDS2 format integers
+    my $xy = $arg{'-xy'}; ## $xy should be a reference to an array of reals
+    my $resolution = $self -> {'Resolution'};
+    if (! ((defined $xy) || (defined $xyInt)))
     {
         die "printXy expects an xy array reference. Missing -xy => \\\@array $!";
     }
-    my $resolution = $self -> {'Resolution'};
+    if (defined $xyInt)
+    {
+        $xy = $xyInt;
+        $resolution=1;
+    }
     my @xyTmp=(); ##don't pollute array passed in
     for(my $i=0;$i<=$#$xy;$i++) ## e.g. 3.4 in -> 3400 out
     {
@@ -2734,7 +2780,7 @@ sub printXy
 
 =cut
 
-sub returnLayer
+sub returnLayer #: Profiled
 {
     my $self = shift;
     ## 2 byte signed integer
@@ -2747,7 +2793,7 @@ sub returnLayer
 
 =cut
 
-sub returnString
+sub returnString #: Profiled
 {
     my $self = shift;
     if ($self -> isString) { $self -> {'RecordData'}[0]; }
@@ -2759,7 +2805,7 @@ sub returnString
 
 =cut
 
-sub returnStrname
+sub returnStrname #: Profiled
 {
     my $self = shift;
     if ($self -> isStrname) { $self -> {'RecordData'}[0]; }
@@ -2779,7 +2825,7 @@ sub returnStrname
 
 =cut
 
-sub isAref
+sub isAref #: Profiled
 {
     my $self = shift;
     if ($self -> {'RecordType'} == $AREF) { 1; }
@@ -2791,7 +2837,7 @@ sub isAref
 
 =cut
 
-sub isBgnlib
+sub isBgnlib #: Profiled
 {
     my $self = shift;
     if ($self -> {'RecordType'} == $BGNLIB) { 1; }
@@ -2803,7 +2849,7 @@ sub isBgnlib
 
 =cut
 
-sub isBgnstr
+sub isBgnstr #: Profiled
 {
     my $self = shift;
     if ($self -> {'RecordType'} == $BGNSTR) { 1; }
@@ -2815,7 +2861,7 @@ sub isBgnstr
 
 =cut
 
-sub isBoundary
+sub isBoundary #: Profiled
 {
     my $self = shift;
     if ($self -> {'RecordType'} == $BOUNDARY) { 1; }
@@ -2827,7 +2873,7 @@ sub isBoundary
 
 =cut
 
-sub isDatatype
+sub isDatatype #: Profiled
 {
     my $self = shift;
     if ($self -> {'RecordType'} == $DATATYPE) { 1; }
@@ -2839,7 +2885,7 @@ sub isDatatype
 
 =cut
 
-sub isEndlib
+sub isEndlib #: Profiled
 {
     my $self = shift;
     if ($self -> {'RecordType'} == $ENDLIB) { 1; }
@@ -2851,7 +2897,7 @@ sub isEndlib
 
 =cut
 
-sub isEndel
+sub isEndel #: Profiled
 {
     my $self = shift;
     if ($self -> {'RecordType'} == $ENDEL) { 1; }
@@ -2863,7 +2909,7 @@ sub isEndel
 
 =cut
 
-sub isEndstr
+sub isEndstr #: Profiled
 {
     my $self = shift;
     if ($self -> {'RecordType'} == $ENDSTR) { 1; }
@@ -2876,7 +2922,7 @@ sub isEndstr
 
 =cut
 
-sub isHeader
+sub isHeader #: Profiled
 {
     my $self = shift;
     if ($self -> {'RecordType'} == $HEADER) { 1; }
@@ -2888,7 +2934,7 @@ sub isHeader
 
 =cut
 
-sub isLibname
+sub isLibname #: Profiled
 {
     my $self = shift;
     if ($self -> {'RecordType'} == $LIBNAME) { 1; }
@@ -2900,7 +2946,7 @@ sub isLibname
 
 =cut
 
-sub isPath
+sub isPath #: Profiled
 {
     my $self = shift;
     if ($self -> {'RecordType'} == $PATH) { 1; }
@@ -2912,7 +2958,7 @@ sub isPath
 
 =cut
 
-sub isSref
+sub isSref #: Profiled
 {
     my $self = shift;
     if ($self -> {'RecordType'} == $SREF) { 1; }
@@ -2924,7 +2970,7 @@ sub isSref
 
 =cut
 
-sub isSrfname
+sub isSrfname #: Profiled
 {
     my $self = shift;
     if ($self -> {'RecordType'} == $SRFNAME) { 1; }
@@ -2936,7 +2982,7 @@ sub isSrfname
 
 =cut
 
-sub isText
+sub isText #: Profiled
 {
     my $self = shift;
     if ($self -> {'RecordType'} == $TEXT) { 1; }
@@ -2948,7 +2994,7 @@ sub isText
 
 =cut
 
-sub isUnits
+sub isUnits #: Profiled
 {
     my $self = shift;
     if ($self -> {'RecordType'} == $UNITS) { 1; }
@@ -2960,7 +3006,7 @@ sub isUnits
 
 =cut
 
-sub isLayer
+sub isLayer #: Profiled
 {
     my $self = shift;
     if ($self -> {'RecordType'} == $LAYER) { 1; }
@@ -2972,7 +3018,7 @@ sub isLayer
 
 =cut
 
-sub isStrname
+sub isStrname #: Profiled
 {
     my $self = shift;
     if ($self -> {'RecordType'} == $STRNAME) { 1; }
@@ -2984,7 +3030,7 @@ sub isStrname
 
 =cut
 
-sub isWidth
+sub isWidth #: Profiled
 {
     my $self = shift;
     if ($self -> {'RecordType'} == $WIDTH) { 1; }
@@ -2996,7 +3042,7 @@ sub isWidth
 
 =cut
 
-sub isXy
+sub isXy #: Profiled
 {
     my $self = shift;
     if ($self -> {'RecordType'} == $XY) { 1; }
@@ -3008,7 +3054,7 @@ sub isXy
 
 =cut
 
-sub isSname
+sub isSname #: Profiled
 {
     my $self = shift;
     if ($self -> {'RecordType'} == $SNAME) { 1; }
@@ -3020,7 +3066,7 @@ sub isSname
 
 =cut
 
-sub isColrow
+sub isColrow #: Profiled
 {
     my $self = shift;
     if ($self -> {'RecordType'} == $COLROW) { 1; }
@@ -3032,7 +3078,7 @@ sub isColrow
 
 =cut
 
-sub isTextnode
+sub isTextnode #: Profiled
 {
     my $self = shift;
     if ($self -> {'RecordType'} == $TEXTNODE) { 1; }
@@ -3044,7 +3090,7 @@ sub isTextnode
 
 =cut
 
-sub isNode
+sub isNode #: Profiled
 {
     my $self = shift;
     if ($self -> {'RecordType'} == $NODE) { 1; }
@@ -3056,7 +3102,7 @@ sub isNode
 
 =cut
 
-sub isTexttype
+sub isTexttype #: Profiled
 {
     my $self = shift;
     if ($self -> {'RecordType'} == $TEXTTYPE) { 1; }
@@ -3068,7 +3114,7 @@ sub isTexttype
 
 =cut
 
-sub isPresentation
+sub isPresentation #: Profiled
 {
     my $self = shift;
     if ($self -> {'RecordType'} == $PRESENTATION) { 1; }
@@ -3080,7 +3126,7 @@ sub isPresentation
 
 =cut
 
-sub isSpacing
+sub isSpacing #: Profiled
 {
     my $self = shift;
     if ($self -> {'RecordType'} == $SPACING) { 1; }
@@ -3092,7 +3138,7 @@ sub isSpacing
 
 =cut
 
-sub isString
+sub isString #: Profiled
 {
     my $self = shift;
     if ($self -> {'RecordType'} == $STRING) { 1; }
@@ -3104,7 +3150,7 @@ sub isString
 
 =cut
 
-sub isStrans
+sub isStrans #: Profiled
 {
     my $self = shift;
     if ($self -> {'RecordType'} == $STRANS) { 1; }
@@ -3116,7 +3162,7 @@ sub isStrans
 
 =cut
 
-sub isMag
+sub isMag #: Profiled
 {
     my $self = shift;
     if ($self -> {'RecordType'} == $MAG) { 1; }
@@ -3128,7 +3174,7 @@ sub isMag
 
 =cut
 
-sub isAngle
+sub isAngle #: Profiled
 {
     my $self = shift;
     if ($self -> {'RecordType'} == $ANGLE) { 1; }
@@ -3140,7 +3186,7 @@ sub isAngle
 
 =cut
 
-sub isUinteger
+sub isUinteger #: Profiled
 {
     my $self = shift;
     if ($self -> {'RecordType'} == $UINTEGER) { 1; }
@@ -3152,7 +3198,7 @@ sub isUinteger
 
 =cut
 
-sub isUstring
+sub isUstring #: Profiled
 {
     my $self = shift;
     if ($self -> {'RecordType'} == $USTRING) { 1; }
@@ -3164,7 +3210,7 @@ sub isUstring
 
 =cut
 
-sub isReflibs
+sub isReflibs #: Profiled
 {
     my $self = shift;
     if ($self -> {'RecordType'} == $REFLIBS) { 1; }
@@ -3176,7 +3222,7 @@ sub isReflibs
 
 =cut
 
-sub isFonts
+sub isFonts #: Profiled
 {
     my $self = shift;
     if ($self -> {'RecordType'} == $FONTS) { 1; }
@@ -3188,7 +3234,7 @@ sub isFonts
 
 =cut
 
-sub isPathtype
+sub isPathtype #: Profiled
 {
     my $self = shift;
     if ($self -> {'RecordType'} == $PATHTYPE) { 1; }
@@ -3200,7 +3246,7 @@ sub isPathtype
 
 =cut
 
-sub isGenerations
+sub isGenerations #: Profiled
 {
     my $self = shift;
     if ($self -> {'RecordType'} == $GENERATIONS) { 1; }
@@ -3212,7 +3258,7 @@ sub isGenerations
 
 =cut
 
-sub isAttrtable
+sub isAttrtable #: Profiled
 {
     my $self = shift;
     if ($self -> {'RecordType'} == $ATTRTABLE) { 1; }
@@ -3224,7 +3270,7 @@ sub isAttrtable
 
 =cut
 
-sub isStyptable
+sub isStyptable #: Profiled
 {
     my $self = shift;
     if ($self -> {'RecordType'} == $STYPTABLE) { 1; }
@@ -3236,7 +3282,7 @@ sub isStyptable
 
 =cut
 
-sub isStrtype
+sub isStrtype #: Profiled
 {
     my $self = shift;
     if ($self -> {'RecordType'} == $STRTYPE) { 1; }
@@ -3248,7 +3294,7 @@ sub isStrtype
 
 =cut
 
-sub isEflags
+sub isEflags #: Profiled
 {
     my $self = shift;
     if ($self -> {'RecordType'} == $EFLAGS) { 1; }
@@ -3260,7 +3306,7 @@ sub isEflags
 
 =cut
 
-sub isElkey
+sub isElkey #: Profiled
 {
     my $self = shift;
     if ($self -> {'RecordType'} == $ELKEY) { 1; }
@@ -3272,7 +3318,7 @@ sub isElkey
 
 =cut
 
-sub isLinktype
+sub isLinktype #: Profiled
 {
     my $self = shift;
     if ($self -> {'RecordType'} == $LINKTYPE) { 1; }
@@ -3284,7 +3330,7 @@ sub isLinktype
 
 =cut
 
-sub isLinkkeys
+sub isLinkkeys #: Profiled
 {
     my $self = shift;
     if ($self -> {'RecordType'} == $LINKKEYS) { 1; }
@@ -3296,7 +3342,7 @@ sub isLinkkeys
 
 =cut
 
-sub isNodetype
+sub isNodetype #: Profiled
 {
     my $self = shift;
     if ($self -> {'RecordType'} == $NODETYPE) { 1; }
@@ -3308,7 +3354,7 @@ sub isNodetype
 
 =cut
 
-sub isPropattr
+sub isPropattr #: Profiled
 {
     my $self = shift;
     if ($self -> {'RecordType'} == $PROPATTR) { 1; }
@@ -3320,7 +3366,7 @@ sub isPropattr
 
 =cut
 
-sub isPropvalue
+sub isPropvalue #: Profiled
 {
     my $self = shift;
     if ($self -> {'RecordType'} == $PROPVALUE) { 1; }
@@ -3332,7 +3378,7 @@ sub isPropvalue
 
 =cut
 
-sub isBox
+sub isBox #: Profiled
 {
     my $self = shift;
     if ($self -> {'RecordType'} == $BOX) { 1; }
@@ -3344,7 +3390,7 @@ sub isBox
 
 =cut
 
-sub isBoxtype
+sub isBoxtype #: Profiled
 {
     my $self = shift;
     if ($self -> {'RecordType'} == $BOXTYPE) { 1; }
@@ -3356,7 +3402,7 @@ sub isBoxtype
 
 =cut
 
-sub isPlex
+sub isPlex #: Profiled
 {
     my $self = shift;
     if ($self -> {'RecordType'} == $PLEX) { 1; }
@@ -3368,7 +3414,7 @@ sub isPlex
 
 =cut
 
-sub isBgnextn
+sub isBgnextn #: Profiled
 {
     my $self = shift;
     if ($self -> {'RecordType'} == $BGNEXTN) { 1; }
@@ -3380,7 +3426,7 @@ sub isBgnextn
 
 =cut
 
-sub isEndextn
+sub isEndextn #: Profiled
 {
     my $self = shift;
     if ($self -> {'RecordType'} == $ENDEXTN) { 1; }
@@ -3392,7 +3438,7 @@ sub isEndextn
 
 =cut
 
-sub isTapenum
+sub isTapenum #: Profiled
 {
     my $self = shift;
     if ($self -> {'RecordType'} == $TAPENUM) { 1; }
@@ -3404,7 +3450,7 @@ sub isTapenum
 
 =cut
 
-sub isTapecode
+sub isTapecode #: Profiled
 {
     my $self = shift;
     if ($self -> {'RecordType'} == $TAPECODE) { 1; }
@@ -3416,7 +3462,7 @@ sub isTapecode
 
 =cut
 
-sub isStrclass
+sub isStrclass #: Profiled
 {
     my $self = shift;
     if ($self -> {'RecordType'} == $STRCLASS) { 1; }
@@ -3428,7 +3474,7 @@ sub isStrclass
 
 =cut
 
-sub isReserved
+sub isReserved #: Profiled
 {
     my $self = shift;
     if ($self -> {'RecordType'} == $RESERVED) { 1; }
@@ -3440,7 +3486,7 @@ sub isReserved
 
 =cut
 
-sub isFormat
+sub isFormat #: Profiled
 {
     my $self = shift;
     if ($self -> {'RecordType'} == $FORMAT) { 1; }
@@ -3452,7 +3498,7 @@ sub isFormat
 
 =cut
 
-sub isMask
+sub isMask #: Profiled
 {
     my $self = shift;
     if ($self -> {'RecordType'} == $MASK) { 1; }
@@ -3464,7 +3510,7 @@ sub isMask
 
 =cut
 
-sub isEndmasks
+sub isEndmasks #: Profiled
 {
     my $self = shift;
     if ($self -> {'RecordType'} == $ENDMASKS) { 1; }
@@ -3476,7 +3522,7 @@ sub isEndmasks
 
 =cut
 
-sub isLibdirsize
+sub isLibdirsize #: Profiled
 {
     my $self = shift;
     if ($self -> {'RecordType'} == $LIBDIRSIZE) { 1; }
@@ -3488,7 +3534,7 @@ sub isLibdirsize
 
 =cut
 
-sub isLibsecur
+sub isLibsecur #: Profiled
 {
     my $self = shift;
     if ($self -> {'RecordType'} == $LIBSECUR) { 1; }
@@ -3499,7 +3545,7 @@ sub isLibsecur
 ################################################################################
 ## support functions
 
-sub getRecordData
+sub getRecordData #: Profiled
 {
     my $self = shift;
     my $dt = $self -> {'DataType'};
@@ -3526,29 +3572,30 @@ sub getRecordData
 }
 ################################################################################
 
-sub readRecordTypeAndData
+sub readRecordTypeAndData #: Profiled
 {
     my $self = shift;
     return ($RecordTypeStrings[$self -> {'RecordType'}],$self -> {'RecordData'});
 }
 ################################################################################
 
-sub skipGds2RecordData
+sub skipGds2RecordData #: Profiled
 {
     my $self = shift;
-    $self -> readGds2RecordHeader() if ($self -> {'HEADER'} <= 0);
+    $self -> readGds2RecordHeader() if ($self -> {'HEADER'} <= 0); ## safety
     $self -> {'HEADER'} = 0;
     $self -> {'INDATA'} = 1;
     my $bytesLeft = $self -> {'Length'} - 4; ## 4 should have been just read by readGds2RecordHeader
-    my $data;
-    read($self -> {'FileHandle'},$data,$bytesLeft);
+    #my $data;
+    #read($self -> {'FileHandle'},$data,$bytesLeft);
+    seek($self -> {'FileHandle'},$bytesLeft,SEEK_CUR); ## seems to run a little faster than read
     $self -> {'DataIndex'}=-1;
     return 1;
 }
 ################################################################################
 
 ### return number of XY coords if XY record 
-sub returnNumCoords
+sub returnNumCoords #: Profiled
 {
     my $self = shift;
     if ($self -> {'RecordType'} == $XY)  ## 4 byte signed integer
@@ -3562,7 +3609,7 @@ sub returnNumCoords
 }
 ################################################################################
 
-sub roundNum
+sub roundNum #: Profiled
 {
     my $self = shift;
     my $num = shift;
@@ -3571,7 +3618,7 @@ sub roundNum
 }
 ################################################################################
 
-sub scaleNum($$)
+sub scaleNum($$) #: Profiled
 {
     my $num=shift;
     my $scale=shift;
@@ -3582,7 +3629,7 @@ sub scaleNum($$)
 }
 ################################################################################
 
-sub snapNum($$)
+sub snapNum($$) #: Profiled
 {
     my $num=shift;
     die "1st number passed into snapNum() must be an integer $!" if ($num !~ m|^-?\d+$|);
@@ -3610,7 +3657,7 @@ sub snapNum($$)
     $num;
 }
 
-sub DESTROY
+sub DESTROY #: Profiled
 {
     my $self = shift;
     #warn "DESTROYing $self";
@@ -3620,7 +3667,7 @@ sub DESTROY
 ## some vendor tools have trouble w/ negative angles and angles >= 360
 ## so we normalize to positive equivalent
 ################################################################################
-sub posAngle($)
+sub posAngle($) #: Profiled
 {
     my $angle = shift;
     $angle += 360.0 while ($angle < 0.0);
@@ -3630,20 +3677,20 @@ sub posAngle($)
 
 
 ################################################################################
-sub subbyte() ## GDS2::version(); 
+sub subbyte() ## GDS2::version();
 {
     my($what,$where,$howmuch) = @_;
     unpack("x$where C$howmuch", $what);
 }
 
 ################################################################################
-sub version() ## GDS2::version(); 
+sub version() ## GDS2::version();
 {
     return $GDS2::VERSION;
 }
 
 ################################################################################
-sub revision() ## GDS2::revision(); 
+sub revision() ## GDS2::revision();
 {
     return $GDS2::revision;
 }

@@ -3,9 +3,12 @@ Revision history for Perl extension GDS2.
 Makefile.PL created by h2xs 1.20 with options
 		-X -n GDS2
 		
-1.0  Originally developed on big endian machines, I still have some
-     work to do on the write methods for little endian machines.
+1.0   Originally developed on big endian machines, I still have some
+      work to do on the write methods for little endian machines.
 
-1.1  Should be set for little endian machines. Starting to look
-     for speed improvements.
+1.1   Should be set for little endian machines. Starting to look
+      for speed improvements.
+
+1.1.1 Started adding tests. Needed to make a change to little-endian
+      record read.
 
