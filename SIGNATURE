@@ -1,5 +1,5 @@
 This file contains message digests of all files listed in MANIFEST,
-signed via the Module::Signature module, version 0.21.
+signed via the Module::Signature module, version 0.38.
 
 To verify the content in this distribution, first make sure you have
 Module::Signature installed, then type:
@@ -15,23 +15,23 @@ not run its Makefile.PL or Build.PL.
 Hash: SHA1
 
 SHA1 fafc78b4111b6e543eacd5d4897195a56e0faf7e Build.PL
-SHA1 b503570dc927e64f02d2831aa6c997404be8ebbf Changes
+SHA1 23aa646218aecfef507e2943869df8886cdce664 Changes
 SHA1 a5c80b9b4dc4e2f9d89d5440ddcfce94bf4a7b8b Examples/act_folder.xpm
 SHA1 24fecfaa097d2b9c827b6a2e97bc2b48622b08b3 Examples/file.xpm
 SHA1 bce2dd5dd026ff1e37fab4cdea38cdd609927092 Examples/folder.xpm
-SHA1 4cb576f85750730875fa56387489e23dfe68014d Examples/gds2dump
-SHA1 7d77e640dec5e849111d8ac02159fff78afc9995 Examples/gds2dumptk
-SHA1 98233c74edbf39a95e3ab4312821828913e0c370 Examples/gdsdump2gds
+SHA1 1440476216ba953afc8e4cafcab26e415f8fbac4 Examples/gds2dump
+SHA1 830752e6c5c31d1c0aa012e72e246742be0c07b1 Examples/gdsdump2gds
 SHA1 894a4a32fee8d007fa11d21b397422777e502735 Examples/gdslayers
 SHA1 c85bbf922af70099913c7cbf705a8d8876888c69 Examples/gdspath4topath0
 SHA1 c52b31ee58f08d247dc8ae2a9e49637c71aab8df Examples/modgds2
 SHA1 0f924bde4e6b4ae9928d7ec39324dc0a76791815 Examples/textfile.xpm
 SHA1 09fe24fd6dbb9cabc1ae98e5d1124e4c7051d2f0 INSTALL
-SHA1 8df5ad5c9042eb85585ed52237f3c9a900d67ac8 MANIFEST
-SHA1 91c06ab8f89b082ed1773803150de4c8096023db META.yml
+SHA1 d4f58848e84edc6fafb9dfbe19566db7dc6475ab MANIFEST
+SHA1 6feb4c601b01cef7f14894905d3ad2a1a915f3cb META.yml
+SHA1 cf1750e1e2343e0284a33b089661500b1e4fe2d5 Makefile.PL
 SHA1 a49f2a3aaf1dc52ecef5bdf9919efa53d01093c8 README
 SHA1 58426bb60eefa0aee21731d1561bcf96193dcc1f TEST.dump
-SHA1 66558c41e79cf0cc72552542e17539feac00ae72 lib/GDS2.pm
+SHA1 da412af4abb24a49aa512949034480fe8e7238eb lib/GDS2.pm
 SHA1 5b0413c9816170829d386b65ad5a815df410a173 lib/GDS2.pm.PL
 SHA1 054dbd146baf0d4df0bcd74a41a2c691f89325e0 t/01load.t
 SHA1 c4d32dae63ffc34c566d7d485c7d5d4d6c2bcc34 t/02create.t
@@ -39,7 +39,7 @@ SHA1 1db9e48261945b7b537b5a064ff5c408508211e3 t/03dump.t
 -----BEGIN PGP SIGNATURE-----
 Version: GnuPG v1.2.1 (GNU/Linux)
 
-iD8DBQE/s/ig8yYS6i8J7sERAjWtAJ9INT/WrWOw+wH9toTi6WsY+qRZ1ACfZ9h+
-Z+omc9lBfOMZJ8IUIdQqEkE=
-=cgDK
+iD8DBQFACZEc8yYS6i8J7sERAtBQAKDRVGqpKlhrSZhUOjiWAaih2H6/TQCgjJrI
+NfuVG5HY/OJYasp4f9/tAiI=
+=Tj82
 -----END PGP SIGNATURE-----

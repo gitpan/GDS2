@@ -4,7 +4,6 @@ Examples/act_folder.xpm
 Examples/file.xpm
 Examples/folder.xpm
 Examples/gds2dump
-Examples/gds2dumptk
 Examples/gdsdump2gds
 Examples/gdslayers
 Examples/gdspath4topath0
@@ -13,6 +12,7 @@ Examples/textfile.xpm
 INSTALL
 lib/GDS2.pm
 lib/GDS2.pm.PL
+Makefile.PL
 MANIFEST
 META.yml
 README
@@ -22,3 +22,4 @@ t/02create.t
 t/03dump.t
 TEST.dump
 
+SIGNATURE    Added here by Module::Build

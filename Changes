@@ -66,3 +66,7 @@ Makefile.PL created by h2xs 1.20 with options
       Changed C comments to use "/* */" instead of "//" for those compilers
       that may not grok '//'
 
+2.03  Updated GDS2.pm as well as gds2dump and dumpgds2gds example 
+      programs to handle GDT (Graphic Data Text format).
+      Trying out Makefile.PL kludge to make CPAN happy.
+

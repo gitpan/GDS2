@@ -1,16 +1,24 @@
 package GDS2; 
 {
 require 5.006;
-$GDS2::VERSION = '2.02'; 
+$GDS2::VERSION = '2.03'; 
 ## Note: '@ ( # )' used by the what command  E.g. what GDS2.pm
-$GDS2::revision = '@(#) $RCSfile: GDS2.pm,v $ $Revision: 2.1 $ $Date: 2003-11-12 16:27:18-06 $';
+$GDS2::revision = '@(#) $RCSfile: GDS2.pm,v $ $Revision: 2.9 $ $Date: 2003-12-10 21:12:53-06 $';
 #
-# Author: Ken Schumack (c) 1999,2000,2001,2002,2003. All rights reserved.
-# source code may be used and modified freely, but this copyright notice
-# must remain attached to the file.  You may modify this module as you 
-# wish, but if you create a modified version, please attach a note
-# listing the modifications you have made, and send a copy to me at 
-# schumack@cpan.org
+
+=pod
+=head1 COPYRIGHT
+
+Author: Ken Schumack (c) 1999-2004. All rights reserved.
+This module is free software. It may be used, redistributed
+and/or modified under the terms of the Perl Artistic License.
+ (see http://www.perl.com/pub/a/language/misc/Artistic.html)
+I do ask that you please let me know if you find bugs or have
+idea for improvements. You can reach me at Schumack@cpan.org
+ Have fun, Ken
+
+=cut
+
 # 
 # Contributor Modification: Peter Baumbach 2002-01-11
 # returnRecordAsPerl() was created to facilitate the creation of
@@ -26,6 +34,7 @@ $GDS2::revision = '@(#) $RCSfile: GDS2.pm,v $ $Revision: 2.1 $ $Date: 2003-11-12
 
 use strict;
 use warnings;
+#use diagnostics;
 
 my @InlineDir;
 my $G_timer;
@@ -55,28 +64,6 @@ BEGIN
     if (NONSTDINLINE) ## can be used for DEBUG, default will be your standard Perl directory
     {
         my $inlineDir = '';
-
-        # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
-        #my $ICHOME = $ENV{'ICHOME'};                                                                   #MOD4LSI
-        #if ((! defined $ICHOME ) || ($ICHOME eq ''))                                                   #MOD4LSI
-        #{                                                                                              #MOD4LSI
-        #    $ICHOME = glob('~ic');                                                                     #MOD4LSI
-        #}                                                                                              #MOD4LSI
-        #if ($ICHOME eq '') ## try FS release area                                                      #MOD4LSI
-        #{                                                                                              #MOD4LSI
-        #    my $LSI_RELEASE = $ENV{'LSI_RELEASE'};                                                     #MOD4LSI
-        #    if ((defined $LSI_RELEASE ) && ($LSI_RELEASE eq '') && (-d "$LSI_RELEASE/lib/rundecks/ic"))#MOD4LSI
-        #    {                                                                                          #MOD4LSI
-        #        $ICHOME = "$LSI_RELEASE/lib/rundecks/ic";                                              #MOD4LSI
-        #        $ENV{'IC_HOME'} = "$LSI_RELEASE/lib/rundecks/ic"; ## for other programs called....     #MOD4LSI
-        #    }                                                                                          #MOD4LSI
-        #}                                                                                              #MOD4LSI
-        #$ENV{'CC'} = 'gcc';                                                                            #MOD4LSI
-        #$ENV{'LD'} = 'gcc';                                                                            #MOD4LSI
-        #$inlineDir = "$ICHOME/lib/perl/$Config{'osname'}" if (-d "$ICHOME/lib/perl/$Config{'osname'}");#MOD4LSI
-        ##$inlineDir = "/lsi/home/schumack/lib/perl/".$Config{'osname'}; ##DEBUG
-        # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
-
         @InlineDir = ('DIRECTORY',$inlineDir) if (-d $inlineDir);
         #use Attribute::Profiled; ## will also have to uncomment #: Profiled
     }
@@ -87,7 +74,7 @@ if (USE_C)                                                 #INLINEC
     use Inline (C    => 'DATA',                            #INLINEC
                 NAME => 'GDS2',                            #INLINEC
                 INC  => '-I/sys',                          #INLINEC
-                CLEAN_AFTER_BUILD => TRUE,                 #INLINEC
+                CLEAN_AFTER_BUILD => FALSE,                #INLINEC
                 @InlineDir, ## from BEGIN section above... #INLINEC
                );                                          #INLINEC
     Inline->init;                                          #INLINEC
@@ -321,6 +308,68 @@ my @RecordTypeStrings=( ## for ascii print of GDS
 'SRFNAME',
 'LIBSECUR',
 );
+my @CompactRecordTypeStrings=( ## for compact ascii print of GDS (GDT format)
+'gds2{',          #HEADER
+'',               #BGNLIB
+'lib',            #LIBNAME
+'',               #UNITS
+'}',              #ENDLIB
+'cell{',          #BGNSTR
+'',               #STRNAME
+'}',              #ENDSTR
+'b{',             #BOUNDARY
+'p{',             #PATH
+'s{',             #SREF
+'a{',             #AREF
+'t{',             #TEXT
+'',               #LAYER
+' dt',            #DATATYPE
+' w',             #WIDTH
+' xy(',           #XY
+'}',              #ENDEL
+'',               #SNAME
+' cr',            #COLROW
+' tn',            #TEXTNODE
+' no',            #NODE
+' tt',            #TEXTTYPE
+'',               #PRESENTATION'
+' sp',            #SPACING
+'',               #STRING
+'',               #STRANS
+' m',             #MAG
+' a',             #ANGLE
+' ui',            #UINTEGER
+' us',            #USTRING
+' rl',            #REFLIBS
+' f',             #FONTS
+' pt',            #PATHTYPE
+' gen',           #GENERATIONS
+' at',            #ATTRTABLE
+' st',            #STYPTABLE
+' strt',          #STRTYPE
+' ef',            #EFLAGS
+' ek',            #ELKEY
+' lt',            #LINKTYPE
+' lk',            #LINKKEYS
+' nt',            #NODETYPE
+' ptr',           #PROPATTR
+' pv',            #PROPVALUE
+' bx',            #BOX
+' bt',            #BOXTYPE
+' px',            #PLEX
+' bx',            #BGNEXTN
+' ex',            #ENDEXTN
+' tnum',          #TAPENUM
+' tcode',         #TAPECODE
+' strc',          #STRCLASS
+' resv',          #RESERVED
+' fmt',           #FORMAT
+' msk',           #MASK
+' emsk',          #ENDMASKS
+' lds',           #LIBDIRSIZE
+' srfn',          #SRFNAME
+' libs',          #LIBSECUR
+);
 
 ###################################################
 my %RecordTypeData=(
@@ -390,7 +439,7 @@ my %RecordTypeData=(
 $GDS2::DefaultClass = 'GDS2' unless defined $GDS2::DefaultClass;
 my $G_epsilon=0.00001; ## to take care of floating point representation problems
 
-=pod
+
 =head1 NAME
 
 GDS2 - GDS2 stream module
@@ -479,8 +528,9 @@ sub new #: Profiled
     $self -> {'DataIndex'}  = 0;
     $self -> {'RecordData'} = ();
     $self -> {'CurrentDataList'} = '';
-    $self -> {'InStr'}      = FALSE;     ##flag for write error checking
-    $self -> {'InElm'}      = FALSE;     ##flag for write error checking
+    $self -> {'InBoundary'} = FALSE;     ##
+    $self -> {'InTxt'}      = FALSE;     ##
+    $self -> {'DateFld'}    = 0;     ##
     $self -> {'Resolution'} = $resolution;
     $self -> {'UsingPrettyPrint'} = FALSE; ## print as string ...
     $self;
@@ -1890,20 +1940,21 @@ sub readGds2RecordHeader #: Profiled
     $self -> {'HEADER'} = TRUE;
     $self -> {'INDATA'} = FALSE;
     return '' if ($self -> {'EOLIB'}); ## no sense reading null padding..
+    my $buffer = '';
+    return 0 if (! read($self -> {'FileHandle'},$buffer,4));
+
     my $data;
-    if (read($self -> {'FileHandle'},$data,2)) ### length
+    #if (read($self -> {'FileHandle'},$data,2)) ### length
+    $data = substr($buffer,0,2);
     {
         $data = reverse $data if ($isLittleEndian);
         $self -> {'Record'} = $data;
         $self -> {'Length'} = unpack 'S',$data; 
         $self -> {'BytesDone'} += $self -> {'Length'};
     }
-    else
-    {
-        return 0;
-    }
 
-    if (read($self -> {'FileHandle'},$data,1)) ## record type 
+    #if (read($self -> {'FileHandle'},$data,1)) ## record type 
+    $data = substr($buffer,2,1);
     {
         $data = reverse $data if ($isLittleEndian);
         $self -> {'Record'} .= $data;
@@ -1918,23 +1969,29 @@ sub readGds2RecordHeader #: Profiled
             putElmSpace('  ') if ((($self -> {'RecordType'}) == TEXT) || (($self -> {'RecordType'}) == PATH) || 
                                  (($self -> {'RecordType'}) == BOUNDARY) || (($self -> {'RecordType'}) == SREF) || 
                                  (($self -> {'RecordType'}) == AREF));
-            putElmSpace('')   if (($self -> {'RecordType'}) == ENDEL);
+            if (($self -> {'RecordType'}) == ENDEL)
+            {
+                putElmSpace('');
+                $self -> {'InTxt'} = FALSE;
+                $self -> {'InBoundary'} = FALSE;
+            }
+            $self -> {'InTxt'} = TRUE if (($self -> {'RecordType'}) == TEXT);
+            $self -> {'InBoundary'} = TRUE if (($self -> {'RecordType'}) == BOUNDARY);
+            if ((($self -> {'RecordType'}) == LIBNAME) || (($self -> {'RecordType'}) == STRNAME))
+
+            {
+                $self -> {'DateFld'} = 0;
+            }
+            $self -> {'DateFld'} = 1 if ((($self -> {'RecordType'}) == BGNLIB) || (($self -> {'RecordType'}) == BGNSTR));
         }
     }
-    else
-    {
-        return 0;
-    }
 
-    if (read($self -> {'FileHandle'},$data,1)) ## data type
+    #if (read($self -> {'FileHandle'},$data,1)) ## data type
+    $data = substr($buffer,3,1);
     {
         $data = reverse $data if ($isLittleEndian);
         $self -> {'Record'} .= $data;
         $self -> {'DataType'} = unpack 'C',$data; 
-    }
-    else
-    {
-        return 0;
     }
     #printf("P:Length=%-5d RecordType=%-2d DataType=%-2d\n",$self -> {'Length'},$self -> {'RecordType'},$self -> {'DataType'}); ##DEBUG
     return 1;
@@ -2000,16 +2057,20 @@ sub readGds2RecordData #: Profiled
     {
         my $tmpListString = ''; 
         my $i = 0;
-        while ($bytesLeft)
+        my $buffer = '';
+        read($self -> {'FileHandle'},$buffer,$bytesLeft); ## try fewer reads
+        #while ($bytesLeft)
+        for(my $start=0; $start < $bytesLeft; $start += 4)
         {
-            read($self -> {'FileHandle'},$data,4);
+            $data = substr($buffer,$start,4);
+            #read($self -> {'FileHandle'},$data,4);
             $data = reverse $data if ($isLittleEndian);
             $self -> {'Record'} .= $data;
             $self -> {'RecordData'}[$i] = unpack 'i',$data;
             $tmpListString .= ',';
             $tmpListString .= $self -> {'RecordData'}[$i];
             $i++;
-            $bytesLeft -= 4;
+            #$bytesLeft -= 4;
         }
         $self -> {'DataIndex'} = $i - 1;
         $self -> {'CurrentDataList'} = $tmpListString;
@@ -2143,19 +2204,34 @@ sub returnRecordTypeString #: Profiled
 
 sub returnRecordAsString() #: Profiled
 {
-    my $self = shift;
+    my($self,%arg) = @_;
+    my $compact = $arg{'-compact'};
+    $compact = FALSE if (! defined $compact);
     my $string = '';
     $self -> {'UsingPrettyPrint'} = TRUE;
-    $string .= getStrSpace() if ($self -> {'RecordType'} != BGNSTR);
-    $string .= getElmSpace() if (!(
-                    ($self -> {'RecordType'} == TEXT) ||
-                    ($self -> {'RecordType'} == PATH) || 
-                    ($self -> {'RecordType'} == BOUNDARY) ||
-                    ($self -> {'RecordType'} == SREF) || 
-                    ($self -> {'RecordType'} == AREF)
-                ));
+    my $inText = $self -> {'InTxt'};
+    my $inBoundary = $self -> {'InBoundary'};
+    my $dateFld = $self -> {'DateFld'};
+    if (! $compact)
+    {
+        $string .= getStrSpace() if ($self -> {'RecordType'} != BGNSTR);
+        $string .= getElmSpace() if (!(
+                        ($self -> {'RecordType'} == BOUNDARY) ||
+                        ($self -> {'RecordType'} == PATH) || 
+                        ($self -> {'RecordType'} == TEXT) ||
+                        ($self -> {'RecordType'} == SREF) || 
+                        ($self -> {'RecordType'} == AREF)
+                    ));
+    }
     my $recordType = $RecordTypeStrings[$self -> {'RecordType'}];
-    $string .= $recordType;
+    if ($compact)
+    {
+        $string .= $CompactRecordTypeStrings[$self -> {'RecordType'}];
+    }
+    else
+    {
+        $string .= $recordType;
+    }
     my $i = 0;
     while ($i <= $self -> {'DataIndex'})
     {
@@ -2167,14 +2243,83 @@ sub returnRecordAsString() #: Profiled
                 $bitString =~ m|(........)(........)|;
                 $bitString = "$2$1";
             }
-            $string .= '  '.$bitString;
+            if ($compact)
+            {
+                $string .= ' fx' if($bitString =~ m/^1/);
+                if ($inText && ($self -> {'RecordType'} != STRANS))
+                {
+                    $string .= ' f';
+                    $string .= '0' if ($bitString =~ m/00....$/);
+                    $string .= '1' if ($bitString =~ m/01....$/);
+                    $string .= '2' if ($bitString =~ m/10....$/);
+                    $string .= '3' if ($bitString =~ m/11....$/);
+                    $string .= ' t' if ($bitString =~ m/00..$/);
+                    $string .= ' m' if ($bitString =~ m/01..$/);
+                    $string .= ' b' if ($bitString =~ m/10..$/);
+                    $string .= 'l' if ($bitString =~ m/00$/);
+                    $string .= 'c' if ($bitString =~ m/01$/);
+                    $string .= 'r' if ($bitString =~ m/10$/);
+                }
+            }
+            else
+            {
+                $string .= '  '.$bitString;
+            }
         }
         elsif (
             ($self -> {'DataType'} == INTEGER_2) ||
             ($self -> {'DataType'} == REAL_8)
         )
         {
-            $string .= '  '.$self -> {'RecordData'}[$i];
+            if ($compact)
+            {
+                if ($dateFld)
+                {
+                    my $num = $self -> {'RecordData'}[$i];
+                    if ($dateFld =~ m/^[17]$/)
+                    {
+                        if ($dateFld eq '1')
+                        {
+                            if ($recordType eq 'BGNLIB')
+                            {
+                               $string .= 'm=';
+                            }
+                            else
+                            {
+                               $string .= 'c=';
+                            }
+                        }
+                        elsif ($dateFld eq '7')
+                        {
+                            if ($recordType eq 'BGNLIB')
+                            {
+                               $string .= ' a=';
+                            }
+                            else
+                            {
+                               $string .= ' m=';
+                            }
+                        }
+                        $num += 1900 if ($num < 1900);
+                    }
+                    $num = sprintf("%02d",$num);
+                    $string .= '-' if ($dateFld =~ m/^[2389]/);
+                    $string .= ':' if ($dateFld =~ m/^[56]/);
+                    $string .= ':' if ($dateFld =~ m/^1[12]/);
+                    $string .= ' ' if (($dateFld eq '4') || ($dateFld eq '10'));
+                    $string .= $num;
+                }
+                else
+                {
+                    $string .= ' ' unless ($string =~ m/ (a|m|pt)$/i);
+                    $string .= $self -> {'RecordData'}[$i];
+                }
+            }
+            else
+            {
+                $string .= '  ';
+                $string .= $self -> {'RecordData'}[$i];
+            }
             if ($recordType eq 'UNITS')
             {
                 $string =~ s|(\d)\.e|$1e|; ## perl on Cygwin prints "1.e-9" others "1e-9"
@@ -2183,13 +2328,28 @@ sub returnRecordAsString() #: Profiled
         }
         elsif ($self -> {'DataType'} == INTEGER_4)
         {
-            $string .= '  '.$self -> {'RecordData'}[$i]*($self -> {'UUnits'});
+            if ($compact)
+            {
+                $string .= ' ' if ($i);
+            }
+            else
+            {
+                $string .= '  ';
+            }
+            $string .= $self -> {'RecordData'}[$i]*($self -> {'UUnits'});
+            if ($compact && $i && ($i == $#{$self -> {'RecordData'}}))
+            {
+                $string =~ s/ +[\d\.\-]+ +[\d\.\-]+$// if ($inBoundary); #remove last point
+                $string .= ')';
+            }
         }
         elsif ($self -> {'DataType'} == ACSII_STRING)
         {
-            $string .= "  '".$self -> {'RecordData'}[$i]."'";
+            $string .= ' ' if (! $compact);
+            $string .= " '".$self -> {'RecordData'}[$i]."'";
         }
         $i++;
+        $dateFld++ if ($dateFld);
     }
     $string;
 }
@@ -4222,6 +4382,21 @@ sub posAngle($) #: Profiled
     $angle;
 }
 
+=head2 recordSize - return current record size
+
+  usage:
+    my $len = $gds2File -> recordSize;
+
+
+=cut
+
+################################################################################
+sub recordSize() #: Profiled
+{
+    my $self = shift;
+    $self -> {'Length'};
+}
+
 =head2 tellSize - return current byte position (NOT zero based)
 
   usage:
@@ -4470,7 +4645,28 @@ int C_readGds2RecordHeader(SV* self)
             if (RecordType == ENDSTR) C_putStrSpace(0);
             if (RecordType == BGNSTR) C_putStrSpace(2);
             if ((RecordType == TEXT) || (RecordType == PATH) || (RecordType == BOUNDARY) || (RecordType == SREF) || (RecordType == AREF)) C_putElmSpace(2);
-            if (RecordType == ENDEL) C_putElmSpace(0);
+            if (RecordType == ENDEL)
+            {
+                C_putElmSpace(0);
+                hv_store(gdsObj,"InTxt",5,newSViv(0),0);
+                hv_store(gdsObj,"InBoundary",10,newSViv(0),0);
+            }
+            if (RecordType == TEXT)
+            {
+                hv_store(gdsObj,"InTxt",5,newSViv(1),0);
+            }
+            if (RecordType == BOUNDARY)
+            {
+                hv_store(gdsObj,"InBoundary",10,newSViv(1),0);
+            }
+            if ((RecordType == LIBNAME) || (RecordType == STRNAME))
+            {
+                hv_store(gdsObj,"DateFld",7,newSViv(0),0);
+            }
+            if ((RecordType == BGNLIB) || (RecordType == BGNSTR))
+            {
+                hv_store(gdsObj,"DateFld",7,newSViv(1),0);
+            }
         }
     }
     else
