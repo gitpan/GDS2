@@ -1,20 +1,26 @@
 package GDS2; 
 {
-require 5.004;
-$GDS2::VERSION = '1.1.1'; 
+require 5.005;
+$GDS2::VERSION = '1.2.0'; 
 ## Note: '@ ( # )' used by the what command  E.g. what GDS2.pm
-$GDS2::revision = '@(#) $RCSfile: GDS2.pm,v $ $Revision: 1.48 $ $Date: 2001-11-21 00:57:42-06 $';
+$GDS2::revision = '@(#) $RCSfile: GDS2.pm,v $ $Revision: 1.49 $ $Date: 2001-11-26 18:31:24-06 $';
 use strict;
-#use Attribute::Profiled;
-#use Benchmark::Timer;
 use Config;
 use IO::File;
-#use warnings; ## I think you need 5.6 to use this 
+#use warnings; ## I think you need Perl 5.6 to use this 
+#use Attribute::Profiled;
 no strict qw( refs );
+my $G_timer;
+use constant TIMER_ON => 0;
+if (TIMER_ON)
+{
+    #use Benchmark::Timer;
+    $G_timer = new Benchmark::Timer;
+}
 my $haveFlock=1; ## some systems still may not have this...manually change
 if ($haveFlock)
 {
-use Fcntl q(:flock);  # import LOCK_* constants
+    use Fcntl q(:flock);  # import LOCK_* constants
 }
 my $isLittleEndian = 0; #default
 $isLittleEndian = 1 if ($Config{'byteorder'} =~ m|^1|); ## mswin32 cygwin vms
@@ -37,151 +43,153 @@ $isLittleEndian = 1 if ($Config{'byteorder'} =~ m|^1|); ## mswin32 cygwin vms
 
 ################################################################################
 ## GDS2 STREAM RECORD DATATYPES
-my $NO_DATA      = 0;
-my $BIT_ARRAY    = 1;
-my $INTEGER_2    = 2;
-my $INTEGER_4    = 3;
-my $REAL_4       = 4; ## NOT supported
-my $REAL_8       = 5;
-my $ACSII_STRING = 6;
+use constant NO_DATA      => 0;
+use constant BIT_ARRAY    => 1;
+use constant INTEGER_2    => 2;
+use constant INTEGER_4    => 3;
+use constant REAL_4       => 4; ## NOT supported
+use constant REAL_8       => 5;
+use constant ACSII_STRING => 6;
 ################################################################################
 
 ################################################################################
 ## GDS2 STREAM RECORD TYPES 
-use vars '$HEADER';
-use vars '$BGNLIB';
-use vars '$LIBNAME';
-use vars '$UNITS';
-use vars '$ENDLIB';
-use vars '$BGNSTR';
-use vars '$STRNAME';
-use vars '$ENDSTR';
-use vars '$BOUNDARY';
-use vars '$PATH';
-use vars '$SREF';
-use vars '$AREF';
-use vars '$TEXT';
-use vars '$LAYER';
-use vars '$DATATYPE';
-use vars '$WIDTH';
-use vars '$XY';
-use vars '$ENDEL';
-use vars '$SNAME';
-use vars '$COLROW';
-use vars '$TEXTNODE';
-use vars '$NODE';
-use vars '$TEXTTYPE';
-use vars '$PRESENTATION';
-use vars '$SPACING';
-use vars '$STRING';
-use vars '$STRANS';
-use vars '$MAG';
-use vars '$ANGLE';
-use vars '$UINTEGER';
-use vars '$USTRING';
-use vars '$REFLIBS';
-use vars '$FONTS';
-use vars '$PATHTYPE';
-use vars '$GENERATIONS';
-use vars '$ATTRTABLE';
-use vars '$STYPTABLE';
-use vars '$STRTYPE';
-use vars '$EFLAGS';
-use vars '$ELKEY';
-use vars '$LINKTYPE';
-use vars '$LINKKEYS';
-use vars '$NODETYPE';
-use vars '$PROPATTR';
-use vars '$PROPVALUE';
-use vars '$BOX';
-use vars '$BOXTYPE';
-use vars '$PLEX';
-use vars '$BGNEXTN';
-use vars '$ENDEXTN';
-use vars '$TAPENUM';
-use vars '$TAPECODE';
-use vars '$STRCLASS';
-use vars '$RESERVED';
-use vars '$FORMAT';
-use vars '$MASK';
-use vars '$ENDMASKS';
-use vars '$LIBDIRSIZE';
-use vars '$SRFNAME';
-use vars '$LIBSECUR';
-
-$HEADER        =  0;   ## 2-byte Signed Integer
-$BGNLIB        =  1;   ## 2-byte Signed Integer
-$LIBNAME       =  2;   ## ASCII String
-$UNITS         =  3;   ## 8-byte Real
-$ENDLIB        =  4;   ## no data present
-$BGNSTR        =  5;   ## 2-byte Signed Integer
-$STRNAME       =  6;   ## ASCII String
-$ENDSTR        =  7;   ## no data present
-$BOUNDARY      =  8;   ## no data present
-$PATH          =  9;   ## no data present
-$SREF          = 10;   ## no data present
-$AREF          = 11;   ## no data present
-$TEXT          = 12;   ## no data present
-$LAYER         = 13;   ## 2-byte Signed Integer
-$DATATYPE      = 14;   ## 2-byte Signed Integer
-$WIDTH         = 15;   ## 4-byte Signed Integer
-$XY            = 16;   ## 2-byte Signed Integer
-$ENDEL         = 17;   ## no data present
-$SNAME         = 18;   ## ASCII String
-$COLROW        = 19;   ## 2 2-byte Signed Integer
-$TEXTNODE      = 20;   ## no data present
-$NODE          = 21;   ## no data present
-$TEXTTYPE      = 22;   ## 2-byte Signed Integer
-$PRESENTATION  = 23;   ## Bit Array
-$SPACING       = 24;   ## discontinued
-$STRING        = 25;   ## ASCII String
-$STRANS        = 26;   ## Bit Array
-$MAG           = 27;   ## 8-byte Real
-$ANGLE         = 28;   ## 8-byte Real
-$UINTEGER      = 29;   ## UNKNOWN User int, used only in Calma V2.0
-$USTRING       = 30;   ## UNKNOWN User string, used only in Calma V2.0
-$REFLIBS       = 31;   ## ASCII String
-$FONTS         = 32;   ## ASCII String
-$PATHTYPE      = 33;   ## 2-byte Signed Integer
-$GENERATIONS   = 34;   ## 2-byte Signed Integer
-$ATTRTABLE     = 35;   ## ASCII String
-$STYPTABLE     = 36;   ## ASCII String "Unreleased feature"
-$STRTYPE       = 37;   ## 2-byte Signed Integer "Unreleased feature"
-$EFLAGS        = 38;   ## BIT_ARRAY  Flags for template and exterior data.  bits 15 to 0, l to r 0=template, 
-                       ##   1=external data, others unused
-$ELKEY         = 39;   ## INTEGER_4  "Unreleased feature"
-$LINKTYPE      = 40;   ## UNKNOWN    "Unreleased feature"
-$LINKKEYS      = 41;   ## UNKNOWN    "Unreleased feature"
-$NODETYPE      = 42;   ## INTEGER_2  Nodetype specification. On Calma this could be 0 to 63, GDSII allows 0 to 255. 
-                       ##   Of course a 2 byte integer allows up to 65535...
-$PROPATTR      = 43;   ## INTEGER_2  Property number.
-$PROPVALUE     = 44;   ## STRING     Property value. On GDSII, 128 characters max, unless an SREF, AREF, or NODE, 
-                       ##   which may have 512 characters.
-$BOX           = 45;   ## NO_DATA    The beginning of a BOX element.
-$BOXTYPE       = 46;   ## INTEGER_2  Boxtype specification.
-$PLEX          = 47;   ## INTEGER_4  Plex number and plexhead flag. The least significant bit of the most significant 
-                       ##    byte is the plexhead flag.
-$BGNEXTN       = 48;   ## INTEGER_4  Path extension beginning for pathtype 4 in Calma CustomPlus. In database units, 
-                       ##    may be negative.
-$ENDEXTN       = 49;   ## INTEGER_4  Path extension end for pathtype 4 in Calma CustomPlus. In database units, may be negative.
-$TAPENUM       = 50;   ## INTEGER_2  Tape number for multi-reel stream file.
-$TAPECODE      = 51;   ## INTEGER_2  Tape code to verify that the reel is from the proper set. 12 bytes that are 
-                       ##   supposed to form a unique tape code.
-$STRCLASS      = 52;   ## BIT_ARRAY  Calma use only. 
-$RESERVED      = 53;   ## INTEGER_4  Used to be NUMTYPES per Calma GDSII Stream Format Manual, v6.0.
-$FORMAT        = 54;   ## INTEGER_2  Archive or Filtered flag.  0: Archive 1: filtered
-$MASK          = 55;   ## STRING     Only in filtered streams. Layers and datatypes used for mask in a filtered 
-                       ##   stream file. A string giving ranges of layers and datatypes separated by a semicolon. 
-                       ##   There may be more than one mask in a stream file.
-$ENDMASKS      = 56;   ## NO_DATA    The end of mask descriptions.
-$LIBDIRSIZE    = 57;   ## INTEGER_2  Number of pages in library director, a GDSII thing, it seems to have only been 
-                       ##   used when Calma INFORM was creating a new library.
-$SRFNAME       = 58;   ## STRING     Calma "Sticks"(c) rule file name.
-$LIBSECUR      = 59;   ## INTEGER_2  Access control list stuff for CalmaDOS, ancient. INFORM used this when creating 
-                       ##   a new library. Had 1 to 32 entries with group numbers, user numbers and access rights.
+use constant HEADER       =>  0;   ## 2-byte Signed Integer
+use constant BGNLIB       =>  1;   ## 2-byte Signed Integer
+use constant LIBNAME      =>  2;   ## ASCII String
+use constant UNITS        =>  3;   ## 8-byte Real
+use constant ENDLIB       =>  4;   ## no data present
+use constant BGNSTR       =>  5;   ## 2-byte Signed Integer
+use constant STRNAME      =>  6;   ## ASCII String
+use constant ENDSTR       =>  7;   ## no data present
+use constant BOUNDARY     =>  8;   ## no data present
+use constant PATH         =>  9;   ## no data present
+use constant SREF         => 10;   ## no data present
+use constant AREF         => 11;   ## no data present
+use constant TEXT         => 12;   ## no data present
+use constant LAYER        => 13;   ## 2-byte Signed Integer
+use constant DATATYPE     => 14;   ## 2-byte Signed Integer
+use constant WIDTH        => 15;   ## 4-byte Signed Integer
+use constant XY           => 16;   ## 2-byte Signed Integer
+use constant ENDEL        => 17;   ## no data present
+use constant SNAME        => 18;   ## ASCII String
+use constant COLROW       => 19;   ## 2 2-byte Signed Integer
+use constant TEXTNODE     => 20;   ## no data present
+use constant NODE         => 21;   ## no data present
+use constant TEXTTYPE     => 22;   ## 2-byte Signed Integer
+use constant PRESENTATION => 23;   ## Bit Array
+use constant SPACING      => 24;   ## discontinued
+use constant STRING       => 25;   ## ASCII String
+use constant STRANS       => 26;   ## Bit Array
+use constant MAG          => 27;   ## 8-byte Real
+use constant ANGLE        => 28;   ## 8-byte Real
+use constant UINTEGER     => 29;   ## UNKNOWN User int, used only in Calma V2.0
+use constant USTRING      => 30;   ## UNKNOWN User string, used only in Calma V2.0
+use constant REFLIBS      => 31;   ## ASCII String
+use constant FONTS        => 32;   ## ASCII String
+use constant PATHTYPE     => 33;   ## 2-byte Signed Integer
+use constant GENERATIONS  => 34;   ## 2-byte Signed Integer
+use constant ATTRTABLE    => 35;   ## ASCII String
+use constant STYPTABLE    => 36;   ## ASCII String "Unreleased feature"
+use constant STRTYPE      => 37;   ## 2-byte Signed Integer "Unreleased feature"
+use constant EFLAGS       => 38;   ## BIT_ARRAY  Flags for template and exterior data.  bits 15 to 0, l to r 0=template, 
+                                   ##   1=external data, others unused
+use constant ELKEY        => 39;   ## INTEGER_4  "Unreleased feature"
+use constant LINKTYPE     => 40;   ## UNKNOWN    "Unreleased feature"
+use constant LINKKEYS     => 41;   ## UNKNOWN    "Unreleased feature"
+use constant NODETYPE     => 42;   ## INTEGER_2  Nodetype specification. On Calma this could be 0 to 63, GDSII allows 0 to 255. 
+                                   ##   Of course a 2 byte integer allows up to 65535...
+use constant PROPATTR     => 43;   ## INTEGER_2  Property number.
+use constant PROPVALUE    => 44;   ## STRING     Property value. On GDSII, 128 characters max, unless an SREF, AREF, or NODE, 
+                                   ##   which may have 512 characters.
+use constant BOX          => 45;   ## NO_DATA    The beginning of a BOX element.
+use constant BOXTYPE      => 46;   ## INTEGER_2  Boxtype specification.
+use constant PLEX         => 47;   ## INTEGER_4  Plex number and plexhead flag. The least significant bit of the most significant 
+                                   ##    byte is the plexhead flag.
+use constant BGNEXTN      => 48;   ## INTEGER_4  Path extension beginning for pathtype 4 in Calma CustomPlus. In database units, 
+                                   ##    may be negative.
+use constant ENDEXTN      => 49;   ## INTEGER_4  Path extension end for pathtype 4 in Calma CustomPlus. In database units, may be negative.
+use constant TAPENUM      => 50;   ## INTEGER_2  Tape number for multi-reel stream file.
+use constant TAPECODE     => 51;   ## INTEGER_2  Tape code to verify that the reel is from the proper set. 12 bytes that are 
+                                   ##   supposed to form a unique tape code.
+use constant STRCLASS     => 52;   ## BIT_ARRAY  Calma use only. 
+use constant RESERVED     => 53;   ## INTEGER_4  Used to be NUMTYPES per Calma GDSII Stream Format Manual, v6.0.
+use constant FORMAT       => 54;   ## INTEGER_2  Archive or Filtered flag.  0: Archive 1: filtered
+use constant MASK         => 55;   ## STRING     Only in filtered streams. Layers and datatypes used for mask in a filtered 
+                                   ##   stream file. A string giving ranges of layers and datatypes separated by a semicolon. 
+                                   ##   There may be more than one mask in a stream file.
+use constant ENDMASKS     => 56;   ## NO_DATA    The end of mask descriptions.
+use constant LIBDIRSIZE   => 57;   ## INTEGER_2  Number of pages in library director, a GDSII thing, it seems to have only been 
+                                   ##   used when Calma INFORM was creating a new library.
+use constant SRFNAME      => 58;   ## STRING     Calma "Sticks"(c) rule file name.
+use constant LIBSECUR     => 59;   ## INTEGER_2  Access control list stuff for CalmaDOS, ancient. INFORM used this when creating 
+                                    ##   a new library. Had 1 to 32 entries with group numbers, user numbers and access rights.
 #################################################################################################
 
-my @RecordTypeStrings=(
+my %RecordTypeNumbers=(
+'HEADER'      =>  0,
+'BGNLIB'      =>  1,
+'LIBNAME'     =>  2,
+'UNITS'       =>  3,
+'ENDLIB'      =>  4,
+'BGNSTR'      =>  5,
+'STRNAME'     =>  6,
+'ENDSTR'      =>  7,
+'BOUNDARY'    =>  8,
+'PATH'        =>  9,
+'SREF'        => 10,
+'AREF'        => 11,
+'TEXT'        => 12,
+'LAYER'       => 13,
+'DATATYPE'    => 14,
+'WIDTH'       => 15,
+'XY'          => 16,
+'ENDEL'       => 17,
+'SNAME'       => 18,
+'COLROW'      => 19,
+'TEXTNODE'    => 20,
+'NODE'        => 21,
+'TEXTTYPE'    => 22,
+'PRESENTATION'=> 23,
+'SPACING'     => 24,
+'STRING'      => 25,
+'STRANS'      => 26,
+'MAG'         => 27,
+'ANGLE'       => 28,
+'UINTEGER'    => 29,
+'USTRING'     => 30,
+'REFLIBS'     => 31,
+'FONTS'       => 32,
+'PATHTYPE'    => 33,
+'GENERATIONS' => 34,
+'ATTRTABLE'   => 35,
+'STYPTABLE'   => 36,
+'STRTYPE'     => 37,
+'EFLAGS'      => 38,
+'ELKEY'       => 39,
+'LINKTYPE'    => 40,
+'LINKKEYS'    => 41,
+'NODETYPE'    => 42,
+'PROPATTR'    => 43,
+'PROPVALUE'   => 44,
+'BOX'         => 45,
+'BOXTYPE'     => 46,
+'PLEX'        => 47,
+'BGNEXTN'     => 48,
+'ENDEXTN'     => 49,
+'TAPENUM'     => 50,
+'TAPECODE'    => 51,
+'STRCLASS'    => 52,
+'RESERVED'    => 53,
+'FORMAT'      => 54,
+'MASK'        => 55,
+'ENDMASKS'    => 56,
+'LIBDIRSIZE'  => 57,
+'SRFNAME'     => 58,
+'LIBSECUR'    => 59,
+);
+
+my @RecordTypeStrings=( ## for ascii print of GDS
 'HEADER',
 'BGNLIB',
 'LIBNAME',
@@ -246,66 +254,66 @@ my @RecordTypeStrings=(
 
 ###################################################
 my %RecordTypeData=(
-'HEADER'       => $INTEGER_2,
-'BGNLIB'       => $INTEGER_2,
-'LIBNAME'      => $ACSII_STRING,
-'UNITS'        => $REAL_8,
-'ENDLIB'       => $NO_DATA,
-'BGNSTR'       => $INTEGER_2,
-'STRNAME'      => $ACSII_STRING,
-'ENDSTR'       => $NO_DATA,
-'BOUNDARY'     => $NO_DATA,
-'PATH'         => $NO_DATA,
-'SREF'         => $NO_DATA,
-'AREF'         => $NO_DATA,
-'TEXT'         => $NO_DATA,
-'LAYER'        => $INTEGER_2,
-'DATATYPE'     => $INTEGER_2,
-'WIDTH'        => $INTEGER_4,
-'XY'           => $INTEGER_4,
-'ENDEL'        => $NO_DATA,
-'SNAME'        => $ACSII_STRING,
-'COLROW'       => $INTEGER_2,
-'TEXTNODE'     => $NO_DATA,
-'NODE'         => $NO_DATA,
-'TEXTTYPE'     => $INTEGER_2,
-'PRESENTATION' => $BIT_ARRAY,
-'SPACING'      => -1, #$INTEGER_4, discontinued
-'STRING'       => $ACSII_STRING,
-'STRANS'       => $BIT_ARRAY,
-'MAG'          => $REAL_8,
-'ANGLE'        => $REAL_8,
-'UINTEGER'     => -1, #$INTEGER_4, no longer used
-'USTRING'      => -1, #$ACSII_STRING, no longer used
-'REFLIBS'      => $ACSII_STRING,
-'FONTS'        => $ACSII_STRING,
-'PATHTYPE'     => $INTEGER_2,
-'GENERATIONS'  => $INTEGER_2, #$INTEGER_2,
-'ATTRTABLE'    => $ACSII_STRING, #$ACSII_STRING,
-'STYPTABLE'    => $ACSII_STRING, #$ACSII_STRING, unreleased feature
-'STRTYPE'      => $INTEGER_2, #$INTEGER_2, unreleased feature
-'EFLAGS'       => $BIT_ARRAY, #$BIT_ARRAY,
-'ELKEY'        => $INTEGER_4, #$INTEGER_4, unreleased feature
-'LINKTYPE'     => $INTEGER_2, #unreleased feature
-'LINKKEYS'     => $INTEGER_4, #unreleased feature
-'NODETYPE'     => $INTEGER_2, 
-'PROPATTR'     => $INTEGER_2,
-'PROPVALUE'    => $ACSII_STRING,
-'BOX'          => $NO_DATA, #$NO_DATA,
-'BOXTYPE'      => $INTEGER_2, #$INTEGER_2,
-'PLEX'         => $INTEGER_4, #$INTEGER_4,
-'BGNEXTN'      => $INTEGER_4,
-'ENDEXTN'      => $INTEGER_4,
-'TAPENUM'      => $INTEGER_2,
-'TAPECODE'     => $INTEGER_2,
+'HEADER'       => INTEGER_2,
+'BGNLIB'       => INTEGER_2,
+'LIBNAME'      => ACSII_STRING,
+'UNITS'        => REAL_8,
+'ENDLIB'       => NO_DATA,
+'BGNSTR'       => INTEGER_2,
+'STRNAME'      => ACSII_STRING,
+'ENDSTR'       => NO_DATA,
+'BOUNDARY'     => NO_DATA,
+'PATH'         => NO_DATA,
+'SREF'         => NO_DATA,
+'AREF'         => NO_DATA,
+'TEXT'         => NO_DATA,
+'LAYER'        => INTEGER_2,
+'DATATYPE'     => INTEGER_2,
+'WIDTH'        => INTEGER_4,
+'XY'           => INTEGER_4,
+'ENDEL'        => NO_DATA,
+'SNAME'        => ACSII_STRING,
+'COLROW'       => INTEGER_2,
+'TEXTNODE'     => NO_DATA,
+'NODE'         => NO_DATA,
+'TEXTTYPE'     => INTEGER_2,
+'PRESENTATION' => BIT_ARRAY,
+'SPACING'      => -1, #INTEGER_4, discontinued
+'STRING'       => ACSII_STRING,
+'STRANS'       => BIT_ARRAY,
+'MAG'          => REAL_8,
+'ANGLE'        => REAL_8,
+'UINTEGER'     => -1, #INTEGER_4, no longer used
+'USTRING'      => -1, #ACSII_STRING, no longer used
+'REFLIBS'      => ACSII_STRING,
+'FONTS'        => ACSII_STRING,
+'PATHTYPE'     => INTEGER_2,
+'GENERATIONS'  => INTEGER_2,
+'ATTRTABLE'    => ACSII_STRING,
+'STYPTABLE'    => ACSII_STRING, # unreleased feature
+'STRTYPE'      => INTEGER_2, #INTEGER_2, unreleased feature
+'EFLAGS'       => BIT_ARRAY,
+'ELKEY'        => INTEGER_4, #INTEGER_4, unreleased feature
+'LINKTYPE'     => INTEGER_2, #unreleased feature
+'LINKKEYS'     => INTEGER_4, #unreleased feature
+'NODETYPE'     => INTEGER_2, 
+'PROPATTR'     => INTEGER_2,
+'PROPVALUE'    => ACSII_STRING,
+'BOX'          => NO_DATA,
+'BOXTYPE'      => INTEGER_2,
+'PLEX'         => INTEGER_4,
+'BGNEXTN'      => INTEGER_4,
+'ENDEXTN'      => INTEGER_4,
+'TAPENUM'      => INTEGER_2,
+'TAPECODE'     => INTEGER_2,
 'STRCLASS'     => -1,
-'RESERVED'     => $INTEGER_4,
-'FORMAT'       => $INTEGER_2,
-'MASK'         => $ACSII_STRING,
-'ENDMASKS'     => $NO_DATA, #$NO_DATA,
-'LIBDIRSIZE'   => -1, #$INTEGER_2
-'SRFNAME'      => $ACSII_STRING, #$ACSII_STRING,
-'LIBSECUR'     => -1, #$INTEGER_2,
+'RESERVED'     => INTEGER_4,
+'FORMAT'       => INTEGER_2,
+'MASK'         => ACSII_STRING,
+'ENDMASKS'     => NO_DATA,
+'LIBDIRSIZE'   => -1, #INTEGER_2
+'SRFNAME'      => ACSII_STRING,
+'LIBSECUR'     => -1, #INTEGER_2,
 );
 
 # This is the default class for the GDS2 object to use when all else fails.
@@ -357,7 +365,7 @@ sub new #: Profiled
     {
         $resolution=1000;
     }
-    die "new expects a positive integer resolution. ($resolution) $!" if (($resolution <= 0)||($resolution =~ m|\.|));
+    die "new expects a positive integer resolution. ($resolution) $!" if (($resolution <= 0) || ($resolution !~ m|^\d+$|));
     my $lockMode = LOCK_SH;   ## default
     my $openModStr = substr($fileName,0,2);  ### looking for > or >>
     $openModStr =~ s|^\s+||;
@@ -386,7 +394,7 @@ sub new #: Profiled
     {
         flock($fileHandle,$lockMode) or die "File lock on $fileName failed because $!";
     }
-    binmode $fileHandle,':raw';
+    binmode $fileHandle,':raw'; ## may need 5.6 for discipline
     $self -> {'FileHandle'} = $fileHandle;
     $self -> {'FileName'}   = $fileName; ## the gds2 filename
     $self -> {'EOLIB'}      = 0;         ## end of library flag
@@ -452,7 +460,7 @@ sub printInitLib #: Profiled
     }
     my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime(time);
     $mon++;
-    $year += 1900;
+    #$year += 1900; ## Cadence documentation implies that GDS2 year should be left "as is"
     $self -> printGds2Record(-type => 'HEADER',-data => 3); ## GDS2 HEADER
     $self -> printGds2Record(-type => 'BGNLIB',-data => [$year,$mon,$mday,$hour,$min,$sec,$year,$mon,$mday,$hour,$min,$sec]);
     $self -> printGds2Record(-type => 'LIBNAME',-data => $libName);
@@ -735,8 +743,8 @@ sub printSref #: Profiled
     {
         my $data=$reflect.'000000000000000'; ## 16 'bit' string
         $self -> printGds2Record(-type => 'STRANS',-data => $data);
-        $self -> printGds2Record(-type => 'MAG',-data => $mag)if ($mag);
-        $self -> printGds2Record(-type => 'ANGLE',-data => $angle)if ($angle);
+        $self -> printGds2Record(-type => 'MAG',-data => $mag) if ($mag);
+        $self -> printGds2Record(-type => 'ANGLE',-data => $angle) if ($angle);
     }
     my @xyTmp=(); ##don't pollute array passed in
     for(my $i=0;$i<=$#$xy;$i++) ## e.g. 3.4 in -> 3400 out
@@ -827,8 +835,8 @@ sub printAref #: Profiled
     {
         my $data=$reflect.'000000000000000'; ## 16 'bit' string
         $self -> printGds2Record(-type => 'STRANS',-data => $data);
-        $self -> printGds2Record(-type => 'MAG',-data => $mag)if ($mag);
-        $self -> printGds2Record(-type => 'ANGLE',-data => $angle)if ($angle);
+        $self -> printGds2Record(-type => 'MAG',-data => $mag) if ($mag);
+        $self -> printGds2Record(-type => 'ANGLE',-data => $angle) if ($angle);
     }
     my $columns = $arg{'-columns'};
     if ((! defined $columns)||($columns <= 0))
@@ -1123,7 +1131,7 @@ sub saveGds2Record #: Profiled
             $dataString=~s|\s+| |g if ($dataString !~ m|'|); ## don't compress spaces in strings...
             $dataString=~s|'$||; #'for strings
             $dataString=~s|^'||; #'for strings
-            if (($recordDataType == $BIT_ARRAY)||($recordDataType == $ACSII_STRING))
+            if (($recordDataType == BIT_ARRAY)||($recordDataType == ACSII_STRING))
             {
                 $data = $dataString;
             }
@@ -1132,7 +1140,7 @@ sub saveGds2Record #: Profiled
                 $dataString=~s|\s*[\s,;:/\\]+\s*| |g; ## incase commas etc... (non-std) were added by hand
                 @data = split(' ',$dataString);
                 $numDataElements = @data;
-                if ($recordDataType == $INTEGER_4)
+                if ($recordDataType == INTEGER_4)
                 {
                     my @xyTmp=();
                     for(my $i=0;$i<$numDataElements;$i++) ## e.g. 3.4 in -> 3400 out
@@ -1146,23 +1154,23 @@ sub saveGds2Record #: Profiled
         }
         my $byte;
         my $length = 0;
-        if ($recordDataType == $BIT_ARRAY)
+        if ($recordDataType == BIT_ARRAY)
         {
             $length = 2;
         }
-        elsif ($recordDataType == $INTEGER_2)
+        elsif ($recordDataType == INTEGER_2)
         {
             $length = 2 * $numDataElements;
         }
-        elsif ($recordDataType == $INTEGER_4)
+        elsif ($recordDataType == INTEGER_4)
         {
             $length = 4 * $numDataElements;
         }
-        elsif ($recordDataType == $REAL_8)
+        elsif ($recordDataType == REAL_8)
         {
             $length = 8 * $numDataElements;
         }
-        elsif ($recordDataType == $ACSII_STRING)
+        elsif ($recordDataType == ACSII_STRING)
         {
             my $slen = length $data;
             $length = $slen + ($slen % 2); ## needs to be an even number
@@ -1170,25 +1178,25 @@ sub saveGds2Record #: Profiled
 
         my $recordLength = pack 'S',($length + 4); #1 2 bytes for length 3rd for recordType 4th for dataType
         $record .= $recordLength;
-        my $recordType = pack 'C',$$type;  ## evals to GDS2::BGNSTR etc...
+        my $recordType = pack 'C',$RecordTypeNumbers{$type};
         $record .= $recordType;
 
         my $dataType   = pack 'C',$RecordTypeData{$type};
         $record .= $dataType;
 
-        if ($recordDataType == $BIT_ARRAY)     ## bit array 
+        if ($recordDataType == BIT_ARRAY)     ## bit array 
         {
             my $bitLength = $length * 8;
             $record .= pack("B$bitLength",$data);
         }
-        elsif ($recordDataType == $INTEGER_2)  ## 2 byte signed integer
+        elsif ($recordDataType == INTEGER_2)  ## 2 byte signed integer
         {
             foreach my $num (@data)
             {
                 $record .= pack('s',$num);
             }
         }
-        elsif ($recordDataType == $INTEGER_4)  ## 4 byte signed integer
+        elsif ($recordDataType == INTEGER_4)  ## 4 byte signed integer
         {
             foreach my $num (@data)
             {
@@ -1197,7 +1205,7 @@ sub saveGds2Record #: Profiled
                 $record .= pack('i',$num);
             }
         }
-        elsif ($recordDataType == $REAL_8)  ## 8 byte real
+        elsif ($recordDataType == REAL_8)  ## 8 byte real
         {
             foreach my $num (@data)
             {
@@ -1238,7 +1246,7 @@ sub saveGds2Record #: Profiled
                 }
             }
         }
-        elsif ($recordDataType == $ACSII_STRING)  ## ascii string (null padded)
+        elsif ($recordDataType == ACSII_STRING)  ## ascii string (null padded)
         {
             $record .= pack("a$length",$data);
         }
@@ -1325,7 +1333,7 @@ sub printGds2Record #: Profiled
                 my $lengthLeft = $recordLength - 4; ## length left
                 my $recordDataType = $RecordTypeData{$type};
 
-                if (($recordDataType == $INTEGER_2) || ($recordDataType == $BIT_ARRAY))
+                if (($recordDataType == INTEGER_2) || ($recordDataType == BIT_ARRAY))
                 {
                     my $binData = unpack 'b*',$data[0];
                     my $intData = substr($binData,32); #skip 1st 4 bytes (length, recordType dataType)
@@ -1338,7 +1346,7 @@ sub printGds2Record #: Profiled
                         print($fh $byte2);
                     }
                 }
-                elsif ($recordDataType == $INTEGER_4)
+                elsif ($recordDataType == INTEGER_4)
                 {
                     my $binData = unpack 'b*',$data[0];
                     my $intData = substr($binData,32); #skip 1st 4 bytes (length, recordType dataType)
@@ -1350,7 +1358,7 @@ sub printGds2Record #: Profiled
                         print($fh $byte4);
                     }
                 }
-                elsif ($recordDataType == $REAL_8)
+                elsif ($recordDataType == REAL_8)
                 {
                     my $binData = unpack 'b*',$data[0];
                     my $realData = substr($binData,32); #skip 1st 4 bytes (length, recordType dataType)
@@ -1368,11 +1376,11 @@ sub printGds2Record #: Profiled
                         }
                     }
                 }
-                elsif ($recordDataType == $ACSII_STRING)  ## ascii string (null padded)
+                elsif ($recordDataType == ACSII_STRING)  ## ascii string (null padded)
                 {
                     print($fh pack("a$lengthLeft",substr($data[0],4)));
                 }
-                elsif ($recordDataType == $REAL_4)  ## 4 byte real
+                elsif ($recordDataType == REAL_4)  ## 4 byte real
                 {
                     die "4-byte reals are not supported $!";
                 }
@@ -1434,7 +1442,7 @@ sub printGds2Record #: Profiled
             $dataString=~s|\s+| |g if ($dataString !~ m|'|); ## don't compress spaces in strings...
             $dataString=~s|'$||; #'for strings
             $dataString=~s|^'||; #'for strings
-            if (($recordDataType == $BIT_ARRAY)||($recordDataType == $ACSII_STRING))
+            if (($recordDataType == BIT_ARRAY)||($recordDataType == ACSII_STRING))
             {
                 $data = $dataString;
             }
@@ -1443,7 +1451,7 @@ sub printGds2Record #: Profiled
                 $dataString=~s|\s*[\s,;:/\\]+\s*| |g; ## incase commas etc... (non-std) were added by hand
                 @data = split(' ',$dataString);
                 $numDataElements = @data;
-                if ($recordDataType == $INTEGER_4)
+                if ($recordDataType == INTEGER_4)
                 {
                     my @xyTmp=();
                     for(my $i=0;$i<$numDataElements;$i++) ## e.g. 3.4 in -> 3400 out
@@ -1457,23 +1465,23 @@ sub printGds2Record #: Profiled
         }
         my $byte;
         my $length = 0;
-        if ($recordDataType == $BIT_ARRAY)
+        if ($recordDataType == BIT_ARRAY)
         {
             $length = 2;
         }
-        elsif ($recordDataType == $INTEGER_2)
+        elsif ($recordDataType == INTEGER_2)
         {
             $length = 2 * $numDataElements;
         }
-        elsif ($recordDataType == $INTEGER_4)
+        elsif ($recordDataType == INTEGER_4)
         {
             $length = 4 * $numDataElements;
         }
-        elsif ($recordDataType == $REAL_8)
+        elsif ($recordDataType == REAL_8)
         {
             $length = 8 * $numDataElements;
         }
-        elsif ($recordDataType == $ACSII_STRING)
+        elsif ($recordDataType == ACSII_STRING)
         {
             my $slen = length $data;
             $length = $slen + ($slen % 2); ## needs to be an even number
@@ -1490,7 +1498,7 @@ sub printGds2Record #: Profiled
         }
         print($fh $recordLength);
 
-        my $recordType = pack 'C',$$type;  ## evals to GDS2::BGNSTR etc...
+        my $recordType = pack 'C',$RecordTypeNumbers{$type};
         $recordType = reverse $recordType if ($isLittleEndian);
         print($fh $recordType);
 
@@ -1498,13 +1506,13 @@ sub printGds2Record #: Profiled
         $dataType = reverse $dataType if ($isLittleEndian);
         print($fh $dataType);
 
-        if ($recordDataType == $BIT_ARRAY)     ## bit array 
+        if ($recordDataType == BIT_ARRAY)     ## bit array 
         {
             my $bitLength = $length * 8;
             my $value = pack("B$bitLength",$data);
             print($fh $value);
         }
-        elsif ($recordDataType == $INTEGER_2)  ## 2 byte signed integer
+        elsif ($recordDataType == INTEGER_2)  ## 2 byte signed integer
         {
             my $value;
             foreach my $num (@data)
@@ -1514,7 +1522,7 @@ sub printGds2Record #: Profiled
                 print($fh $value);
             }
         }
-        elsif ($recordDataType == $INTEGER_4)  ## 4 byte signed integer
+        elsif ($recordDataType == INTEGER_4)  ## 4 byte signed integer
         {
             my $value;
             foreach my $num (@data)
@@ -1526,7 +1534,7 @@ sub printGds2Record #: Profiled
                 print($fh $value);
             }
         }
-        elsif ($recordDataType == $REAL_8)  ## 8 byte real
+        elsif ($recordDataType == REAL_8)  ## 8 byte real
         {
             my ($real,$negative,$exponent,$value);
             foreach my $num (@data)
@@ -1571,7 +1579,7 @@ sub printGds2Record #: Profiled
                 }
             }
         }
-        elsif ($recordDataType == $ACSII_STRING)  ## ascii string (null padded)
+        elsif ($recordDataType == ACSII_STRING)  ## ascii string (null padded)
         {
             print($fh pack("a$length",$data));
         }
@@ -1666,17 +1674,17 @@ sub readGds2RecordHeader #: Profiled
         $data = reverse $data if ($isLittleEndian);
         $self -> {'Record'} .= $data;
         $self -> {'RecordType'} = unpack 'C',$data; 
-        $self -> {'EOLIB'} = 1 if (($self -> {'RecordType'}) == $ENDLIB);
+        $self -> {'EOLIB'} = 1 if (($self -> {'RecordType'}) == ENDLIB);
 
         if ($self -> {'UsingPrettyPrint'})
         {
-            $StrSpace = ''   if (($self -> {'RecordType'}) == $ENDSTR);
-            $StrSpace = '  ' if (($self -> {'RecordType'}) == $BGNSTR);
+            $StrSpace = ''   if (($self -> {'RecordType'}) == ENDSTR);
+            $StrSpace = '  ' if (($self -> {'RecordType'}) == BGNSTR);
 
-            $ElmSpace = '  ' if ((($self -> {'RecordType'}) == $TEXT) || (($self -> {'RecordType'}) == $PATH) || 
-                                 (($self -> {'RecordType'}) == $BOUNDARY) || (($self -> {'RecordType'}) == $SREF) || 
-                                 (($self -> {'RecordType'}) == $AREF));
-            $ElmSpace = ''   if (($self -> {'RecordType'}) == $ENDEL);
+            $ElmSpace = '  ' if ((($self -> {'RecordType'}) == TEXT) || (($self -> {'RecordType'}) == PATH) || 
+                                 (($self -> {'RecordType'}) == BOUNDARY) || (($self -> {'RecordType'}) == SREF) || 
+                                 (($self -> {'RecordType'}) == AREF));
+            $ElmSpace = ''   if (($self -> {'RecordType'}) == ENDEL);
         }
     }
     else
@@ -1717,7 +1725,7 @@ sub readGds2RecordData #: Profiled
 {
     my $self = shift;
     $self -> readGds2RecordHeader() if ($self -> {'HEADER'} <= 0);
-    return $self -> {'Record'} if ($self -> {'DataType'} == $NO_DATA); # no sense going on...
+    return $self -> {'Record'} if ($self -> {'DataType'} == NO_DATA); # no sense going on...
     $self -> {'HEADER'} = 0; # not in HEADER
     $self -> {'INDATA'} = 1; # rather in DATA
     my $resolution = $self -> {'Resolution'};
@@ -1725,7 +1733,7 @@ sub readGds2RecordData #: Profiled
     $self -> {'RecordData'} = ('');
     $self -> {'CurrentDataList'} = '';
     my $data;
-    if ($self -> {'DataType'} == $BIT_ARRAY)     ## bit array 
+    if ($self -> {'DataType'} == BIT_ARRAY)     ## bit array 
     {
         $self -> {'DataIndex'}=0;
         read($self -> {'FileHandle'},$data,$bytesLeft);
@@ -1735,7 +1743,7 @@ sub readGds2RecordData #: Profiled
         $self -> {'RecordData'}[0] = unpack "B$bitsLeft",$data;
         $self -> {'CurrentDataList'} = ($self -> {'RecordData'}[0]);
     }
-    elsif ($self -> {'DataType'} == $INTEGER_2)  ## 2 byte signed integer
+    elsif ($self -> {'DataType'} == INTEGER_2)  ## 2 byte signed integer
     {
         my $tmpListString = ''; 
         my $i = 0;
@@ -1753,7 +1761,7 @@ sub readGds2RecordData #: Profiled
         $self -> {'DataIndex'} = $i - 1;
         $self -> {'CurrentDataList'} = $tmpListString;
     }
-    elsif ($self -> {'DataType'} == $INTEGER_4)  ## 4 byte signed integer
+    elsif ($self -> {'DataType'} == INTEGER_4)  ## 4 byte signed integer
     {
         my $tmpListString = ''; 
         my $i = 0;
@@ -1771,11 +1779,11 @@ sub readGds2RecordData #: Profiled
         $self -> {'DataIndex'} = $i - 1;
         $self -> {'CurrentDataList'} = $tmpListString;
     }
-    elsif ($self -> {'DataType'} == $REAL_4)  ## 4 byte real
+    elsif ($self -> {'DataType'} == REAL_4)  ## 4 byte real
     {
         die "4-byte reals are not supported $!";
     }
-    elsif ($self -> {'DataType'} == $REAL_8)  ## 8 byte real
+    elsif ($self -> {'DataType'} == REAL_8)  ## 8 byte real
     {
         my $tmpListString = ''; 
         my $i = 0;
@@ -1826,7 +1834,7 @@ sub readGds2RecordData #: Profiled
         $self -> {'DataIndex'} = $i - 1;
         $self -> {'CurrentDataList'} = $tmpListString;
     }
-    elsif ($self -> {'DataType'} == $ACSII_STRING)  ## ascii string (null padded)
+    elsif ($self -> {'DataType'} == ACSII_STRING)  ## ascii string (null padded)
     {
         $self -> {'DataIndex'} = 0;
         read($self -> {'FileHandle'},$data,$bytesLeft);
@@ -1894,31 +1902,31 @@ sub returnRecordAsString() #: Profiled
     my $self = shift;
     my $string = '';
     $self -> {'UsingPrettyPrint'} = 1;
-    $string .= $StrSpace if ($self -> {'RecordType'} != $BGNSTR);
-    $string .= $ElmSpace if (!(($self -> {'RecordType'} == $TEXT) || ($self -> {'RecordType'} == $PATH) || 
-                               ($self -> {'RecordType'} == $BOUNDARY) || ($self -> {'RecordType'} == $SREF) || 
-                               ($self -> {'RecordType'} == $AREF)));
+    $string .= $StrSpace if ($self -> {'RecordType'} != BGNSTR);
+    $string .= $ElmSpace if (!(($self -> {'RecordType'} == TEXT) || ($self -> {'RecordType'} == PATH) || 
+                               ($self -> {'RecordType'} == BOUNDARY) || ($self -> {'RecordType'} == SREF) || 
+                               ($self -> {'RecordType'} == AREF)));
     $string .= $RecordTypeStrings[$self -> {'RecordType'}];
     my $i = 0;
     while ($i <= $self -> {'DataIndex'})
     {
-        if ($self -> {'DataType'} == $BIT_ARRAY)
+        if ($self -> {'DataType'} == BIT_ARRAY)
         {
             $string .= '  '.$self -> {'RecordData'}[$i];
         }
-        elsif ($self -> {'DataType'} == $INTEGER_2)
+        elsif ($self -> {'DataType'} == INTEGER_2)
         {
             $string .= '  '.$self -> {'RecordData'}[$i];
         }
-        elsif ($self -> {'DataType'} == $INTEGER_4)
+        elsif ($self -> {'DataType'} == INTEGER_4)
         {
             $string .= '  '.$self -> {'RecordData'}[$i]*($self -> {'UUnits'});
         }
-        elsif ($self -> {'DataType'} == $REAL_8)
+        elsif ($self -> {'DataType'} == REAL_8)
         {
             $string .= '  '.$self -> {'RecordData'}[$i];
         }
-        elsif ($self -> {'DataType'} == $ACSII_STRING)
+        elsif ($self -> {'DataType'} == ACSII_STRING)
         {
             $string .= "  '".$self -> {'RecordData'}[$i]."'";
         }
@@ -2001,7 +2009,7 @@ sub printBgnlib #: Profiled
     my $self = shift;
     my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime(time);
     $mon++;
-    $year += 1900;
+    #$year += 1900; ## Cadence documentation implies that GDS2 year should be left "as is"
     $self -> printGds2Record(-type=>'BGNLIB',-data=>[$year,$mon,$mday,$hour,$min,$sec,$year,$mon,$mday,$hour,$min,$sec]);
 }
 ################################################################################
@@ -2828,7 +2836,7 @@ sub returnStrname #: Profiled
 sub isAref #: Profiled
 {
     my $self = shift;
-    if ($self -> {'RecordType'} == $AREF) { 1; }
+    if ($self -> {'RecordType'} == AREF) { 1; }
     else { 0; }
 }
 ################################################################################
@@ -2840,7 +2848,7 @@ sub isAref #: Profiled
 sub isBgnlib #: Profiled
 {
     my $self = shift;
-    if ($self -> {'RecordType'} == $BGNLIB) { 1; }
+    if ($self -> {'RecordType'} == BGNLIB) { 1; }
     else { 0; }
 }
 ################################################################################
@@ -2852,7 +2860,7 @@ sub isBgnlib #: Profiled
 sub isBgnstr #: Profiled
 {
     my $self = shift;
-    if ($self -> {'RecordType'} == $BGNSTR) { 1; }
+    if ($self -> {'RecordType'} == BGNSTR) { 1; }
     else { 0; }
 }
 ################################################################################
@@ -2864,7 +2872,7 @@ sub isBgnstr #: Profiled
 sub isBoundary #: Profiled
 {
     my $self = shift;
-    if ($self -> {'RecordType'} == $BOUNDARY) { 1; }
+    if ($self -> {'RecordType'} == BOUNDARY) { 1; }
     else { 0; }
 }
 ################################################################################
@@ -2876,7 +2884,7 @@ sub isBoundary #: Profiled
 sub isDatatype #: Profiled
 {
     my $self = shift;
-    if ($self -> {'RecordType'} == $DATATYPE) { 1; }
+    if ($self -> {'RecordType'} == DATATYPE) { 1; }
     else { 0; }
 }
 ################################################################################
@@ -2888,7 +2896,7 @@ sub isDatatype #: Profiled
 sub isEndlib #: Profiled
 {
     my $self = shift;
-    if ($self -> {'RecordType'} == $ENDLIB) { 1; }
+    if ($self -> {'RecordType'} == ENDLIB) { 1; }
     else { 0; }
 }
 ################################################################################
@@ -2900,7 +2908,7 @@ sub isEndlib #: Profiled
 sub isEndel #: Profiled
 {
     my $self = shift;
-    if ($self -> {'RecordType'} == $ENDEL) { 1; }
+    if ($self -> {'RecordType'} == ENDEL) { 1; }
     else { 0; }
 }
 ################################################################################
@@ -2912,7 +2920,7 @@ sub isEndel #: Profiled
 sub isEndstr #: Profiled
 {
     my $self = shift;
-    if ($self -> {'RecordType'} == $ENDSTR) { 1; }
+    if ($self -> {'RecordType'} == ENDSTR) { 1; }
     else { 0; }
 }
 ################################################################################
@@ -2925,7 +2933,7 @@ sub isEndstr #: Profiled
 sub isHeader #: Profiled
 {
     my $self = shift;
-    if ($self -> {'RecordType'} == $HEADER) { 1; }
+    if ($self -> {'RecordType'} == HEADER) { 1; }
     else { 0; }
 }
 ################################################################################
@@ -2937,7 +2945,7 @@ sub isHeader #: Profiled
 sub isLibname #: Profiled
 {
     my $self = shift;
-    if ($self -> {'RecordType'} == $LIBNAME) { 1; }
+    if ($self -> {'RecordType'} == LIBNAME) { 1; }
     else { 0; }
 }
 ################################################################################
@@ -2949,7 +2957,7 @@ sub isLibname #: Profiled
 sub isPath #: Profiled
 {
     my $self = shift;
-    if ($self -> {'RecordType'} == $PATH) { 1; }
+    if ($self -> {'RecordType'} == PATH) { 1; }
     else { 0; }
 }
 ################################################################################
@@ -2961,7 +2969,7 @@ sub isPath #: Profiled
 sub isSref #: Profiled
 {
     my $self = shift;
-    if ($self -> {'RecordType'} == $SREF) { 1; }
+    if ($self -> {'RecordType'} == SREF) { 1; }
     else { 0; }
 }
 ################################################################################
@@ -2973,7 +2981,7 @@ sub isSref #: Profiled
 sub isSrfname #: Profiled
 {
     my $self = shift;
-    if ($self -> {'RecordType'} == $SRFNAME) { 1; }
+    if ($self -> {'RecordType'} == SRFNAME) { 1; }
     else { 0; }
 }
 ################################################################################
@@ -2985,7 +2993,7 @@ sub isSrfname #: Profiled
 sub isText #: Profiled
 {
     my $self = shift;
-    if ($self -> {'RecordType'} == $TEXT) { 1; }
+    if ($self -> {'RecordType'} == TEXT) { 1; }
     else { 0; }
 }
 ################################################################################
@@ -2997,7 +3005,7 @@ sub isText #: Profiled
 sub isUnits #: Profiled
 {
     my $self = shift;
-    if ($self -> {'RecordType'} == $UNITS) { 1; }
+    if ($self -> {'RecordType'} == UNITS) { 1; }
     else { 0; }
 }
 ################################################################################
@@ -3009,7 +3017,7 @@ sub isUnits #: Profiled
 sub isLayer #: Profiled
 {
     my $self = shift;
-    if ($self -> {'RecordType'} == $LAYER) { 1; }
+    if ($self -> {'RecordType'} == LAYER) { 1; }
     else { 0; }
 }
 ################################################################################
@@ -3021,7 +3029,7 @@ sub isLayer #: Profiled
 sub isStrname #: Profiled
 {
     my $self = shift;
-    if ($self -> {'RecordType'} == $STRNAME) { 1; }
+    if ($self -> {'RecordType'} == STRNAME) { 1; }
     else { 0; }
 }
 ################################################################################
@@ -3033,7 +3041,7 @@ sub isStrname #: Profiled
 sub isWidth #: Profiled
 {
     my $self = shift;
-    if ($self -> {'RecordType'} == $WIDTH) { 1; }
+    if ($self -> {'RecordType'} == WIDTH) { 1; }
     else { 0; }
 }
 ################################################################################
@@ -3045,7 +3053,7 @@ sub isWidth #: Profiled
 sub isXy #: Profiled
 {
     my $self = shift;
-    if ($self -> {'RecordType'} == $XY) { 1; }
+    if ($self -> {'RecordType'} == XY) { 1; }
     else { 0; }
 }
 ################################################################################
@@ -3057,7 +3065,7 @@ sub isXy #: Profiled
 sub isSname #: Profiled
 {
     my $self = shift;
-    if ($self -> {'RecordType'} == $SNAME) { 1; }
+    if ($self -> {'RecordType'} == SNAME) { 1; }
     else { 0; }
 }
 ################################################################################
@@ -3069,7 +3077,7 @@ sub isSname #: Profiled
 sub isColrow #: Profiled
 {
     my $self = shift;
-    if ($self -> {'RecordType'} == $COLROW) { 1; }
+    if ($self -> {'RecordType'} == COLROW) { 1; }
     else { 0; }
 }
 ################################################################################
@@ -3081,7 +3089,7 @@ sub isColrow #: Profiled
 sub isTextnode #: Profiled
 {
     my $self = shift;
-    if ($self -> {'RecordType'} == $TEXTNODE) { 1; }
+    if ($self -> {'RecordType'} == TEXTNODE) { 1; }
     else { 0; }
 }
 ################################################################################
@@ -3093,7 +3101,7 @@ sub isTextnode #: Profiled
 sub isNode #: Profiled
 {
     my $self = shift;
-    if ($self -> {'RecordType'} == $NODE) { 1; }
+    if ($self -> {'RecordType'} == NODE) { 1; }
     else { 0; }
 }
 ################################################################################
@@ -3105,7 +3113,7 @@ sub isNode #: Profiled
 sub isTexttype #: Profiled
 {
     my $self = shift;
-    if ($self -> {'RecordType'} == $TEXTTYPE) { 1; }
+    if ($self -> {'RecordType'} == TEXTTYPE) { 1; }
     else { 0; }
 }
 ################################################################################
@@ -3117,7 +3125,7 @@ sub isTexttype #: Profiled
 sub isPresentation #: Profiled
 {
     my $self = shift;
-    if ($self -> {'RecordType'} == $PRESENTATION) { 1; }
+    if ($self -> {'RecordType'} == PRESENTATION) { 1; }
     else { 0; }
 }
 ################################################################################
@@ -3129,7 +3137,7 @@ sub isPresentation #: Profiled
 sub isSpacing #: Profiled
 {
     my $self = shift;
-    if ($self -> {'RecordType'} == $SPACING) { 1; }
+    if ($self -> {'RecordType'} == SPACING) { 1; }
     else { 0; }
 }
 ################################################################################
@@ -3141,7 +3149,7 @@ sub isSpacing #: Profiled
 sub isString #: Profiled
 {
     my $self = shift;
-    if ($self -> {'RecordType'} == $STRING) { 1; }
+    if ($self -> {'RecordType'} == STRING) { 1; }
     else { 0; }
 }
 ################################################################################
@@ -3153,7 +3161,7 @@ sub isString #: Profiled
 sub isStrans #: Profiled
 {
     my $self = shift;
-    if ($self -> {'RecordType'} == $STRANS) { 1; }
+    if ($self -> {'RecordType'} == STRANS) { 1; }
     else { 0; }
 }
 ################################################################################
@@ -3165,7 +3173,7 @@ sub isStrans #: Profiled
 sub isMag #: Profiled
 {
     my $self = shift;
-    if ($self -> {'RecordType'} == $MAG) { 1; }
+    if ($self -> {'RecordType'} == MAG) { 1; }
     else { 0; }
 }
 ################################################################################
@@ -3177,7 +3185,7 @@ sub isMag #: Profiled
 sub isAngle #: Profiled
 {
     my $self = shift;
-    if ($self -> {'RecordType'} == $ANGLE) { 1; }
+    if ($self -> {'RecordType'} == ANGLE) { 1; }
     else { 0; }
 }
 ################################################################################
@@ -3189,7 +3197,7 @@ sub isAngle #: Profiled
 sub isUinteger #: Profiled
 {
     my $self = shift;
-    if ($self -> {'RecordType'} == $UINTEGER) { 1; }
+    if ($self -> {'RecordType'} == UINTEGER) { 1; }
     else { 0; }
 }
 ################################################################################
@@ -3201,7 +3209,7 @@ sub isUinteger #: Profiled
 sub isUstring #: Profiled
 {
     my $self = shift;
-    if ($self -> {'RecordType'} == $USTRING) { 1; }
+    if ($self -> {'RecordType'} == USTRING) { 1; }
     else { 0; }
 }
 ################################################################################
@@ -3213,7 +3221,7 @@ sub isUstring #: Profiled
 sub isReflibs #: Profiled
 {
     my $self = shift;
-    if ($self -> {'RecordType'} == $REFLIBS) { 1; }
+    if ($self -> {'RecordType'} == REFLIBS) { 1; }
     else { 0; }
 }
 ################################################################################
@@ -3225,7 +3233,7 @@ sub isReflibs #: Profiled
 sub isFonts #: Profiled
 {
     my $self = shift;
-    if ($self -> {'RecordType'} == $FONTS) { 1; }
+    if ($self -> {'RecordType'} == FONTS) { 1; }
     else { 0; }
 }
 ################################################################################
@@ -3237,7 +3245,7 @@ sub isFonts #: Profiled
 sub isPathtype #: Profiled
 {
     my $self = shift;
-    if ($self -> {'RecordType'} == $PATHTYPE) { 1; }
+    if ($self -> {'RecordType'} == PATHTYPE) { 1; }
     else { 0; }
 }
 ################################################################################
@@ -3249,7 +3257,7 @@ sub isPathtype #: Profiled
 sub isGenerations #: Profiled
 {
     my $self = shift;
-    if ($self -> {'RecordType'} == $GENERATIONS) { 1; }
+    if ($self -> {'RecordType'} == GENERATIONS) { 1; }
     else { 0; }
 }
 ################################################################################
@@ -3261,7 +3269,7 @@ sub isGenerations #: Profiled
 sub isAttrtable #: Profiled
 {
     my $self = shift;
-    if ($self -> {'RecordType'} == $ATTRTABLE) { 1; }
+    if ($self -> {'RecordType'} == ATTRTABLE) { 1; }
     else { 0; }
 }
 ################################################################################
@@ -3273,7 +3281,7 @@ sub isAttrtable #: Profiled
 sub isStyptable #: Profiled
 {
     my $self = shift;
-    if ($self -> {'RecordType'} == $STYPTABLE) { 1; }
+    if ($self -> {'RecordType'} == STYPTABLE) { 1; }
     else { 0; }
 }
 ################################################################################
@@ -3285,7 +3293,7 @@ sub isStyptable #: Profiled
 sub isStrtype #: Profiled
 {
     my $self = shift;
-    if ($self -> {'RecordType'} == $STRTYPE) { 1; }
+    if ($self -> {'RecordType'} == STRTYPE) { 1; }
     else { 0; }
 }
 ################################################################################
@@ -3297,7 +3305,7 @@ sub isStrtype #: Profiled
 sub isEflags #: Profiled
 {
     my $self = shift;
-    if ($self -> {'RecordType'} == $EFLAGS) { 1; }
+    if ($self -> {'RecordType'} == EFLAGS) { 1; }
     else { 0; }
 }
 ################################################################################
@@ -3309,7 +3317,7 @@ sub isEflags #: Profiled
 sub isElkey #: Profiled
 {
     my $self = shift;
-    if ($self -> {'RecordType'} == $ELKEY) { 1; }
+    if ($self -> {'RecordType'} == ELKEY) { 1; }
     else { 0; }
 }
 ################################################################################
@@ -3321,7 +3329,7 @@ sub isElkey #: Profiled
 sub isLinktype #: Profiled
 {
     my $self = shift;
-    if ($self -> {'RecordType'} == $LINKTYPE) { 1; }
+    if ($self -> {'RecordType'} == LINKTYPE) { 1; }
     else { 0; }
 }
 ################################################################################
@@ -3333,7 +3341,7 @@ sub isLinktype #: Profiled
 sub isLinkkeys #: Profiled
 {
     my $self = shift;
-    if ($self -> {'RecordType'} == $LINKKEYS) { 1; }
+    if ($self -> {'RecordType'} == LINKKEYS) { 1; }
     else { 0; }
 }
 ################################################################################
@@ -3345,7 +3353,7 @@ sub isLinkkeys #: Profiled
 sub isNodetype #: Profiled
 {
     my $self = shift;
-    if ($self -> {'RecordType'} == $NODETYPE) { 1; }
+    if ($self -> {'RecordType'} == NODETYPE) { 1; }
     else { 0; }
 }
 ################################################################################
@@ -3357,7 +3365,7 @@ sub isNodetype #: Profiled
 sub isPropattr #: Profiled
 {
     my $self = shift;
-    if ($self -> {'RecordType'} == $PROPATTR) { 1; }
+    if ($self -> {'RecordType'} == PROPATTR) { 1; }
     else { 0; }
 }
 ################################################################################
@@ -3369,7 +3377,7 @@ sub isPropattr #: Profiled
 sub isPropvalue #: Profiled
 {
     my $self = shift;
-    if ($self -> {'RecordType'} == $PROPVALUE) { 1; }
+    if ($self -> {'RecordType'} == PROPVALUE) { 1; }
     else { 0; }
 }
 ################################################################################
@@ -3381,7 +3389,7 @@ sub isPropvalue #: Profiled
 sub isBox #: Profiled
 {
     my $self = shift;
-    if ($self -> {'RecordType'} == $BOX) { 1; }
+    if ($self -> {'RecordType'} == BOX) { 1; }
     else { 0; }
 }
 ################################################################################
@@ -3393,7 +3401,7 @@ sub isBox #: Profiled
 sub isBoxtype #: Profiled
 {
     my $self = shift;
-    if ($self -> {'RecordType'} == $BOXTYPE) { 1; }
+    if ($self -> {'RecordType'} == BOXTYPE) { 1; }
     else { 0; }
 }
 ################################################################################
@@ -3405,7 +3413,7 @@ sub isBoxtype #: Profiled
 sub isPlex #: Profiled
 {
     my $self = shift;
-    if ($self -> {'RecordType'} == $PLEX) { 1; }
+    if ($self -> {'RecordType'} == PLEX) { 1; }
     else { 0; }
 }
 ################################################################################
@@ -3417,7 +3425,7 @@ sub isPlex #: Profiled
 sub isBgnextn #: Profiled
 {
     my $self = shift;
-    if ($self -> {'RecordType'} == $BGNEXTN) { 1; }
+    if ($self -> {'RecordType'} == BGNEXTN) { 1; }
     else { 0; }
 }
 ################################################################################
@@ -3429,7 +3437,7 @@ sub isBgnextn #: Profiled
 sub isEndextn #: Profiled
 {
     my $self = shift;
-    if ($self -> {'RecordType'} == $ENDEXTN) { 1; }
+    if ($self -> {'RecordType'} == ENDEXTN) { 1; }
     else { 0; }
 }
 ################################################################################
@@ -3441,7 +3449,7 @@ sub isEndextn #: Profiled
 sub isTapenum #: Profiled
 {
     my $self = shift;
-    if ($self -> {'RecordType'} == $TAPENUM) { 1; }
+    if ($self -> {'RecordType'} == TAPENUM) { 1; }
     else { 0; }
 }
 ################################################################################
@@ -3453,7 +3461,7 @@ sub isTapenum #: Profiled
 sub isTapecode #: Profiled
 {
     my $self = shift;
-    if ($self -> {'RecordType'} == $TAPECODE) { 1; }
+    if ($self -> {'RecordType'} == TAPECODE) { 1; }
     else { 0; }
 }
 ################################################################################
@@ -3465,7 +3473,7 @@ sub isTapecode #: Profiled
 sub isStrclass #: Profiled
 {
     my $self = shift;
-    if ($self -> {'RecordType'} == $STRCLASS) { 1; }
+    if ($self -> {'RecordType'} == STRCLASS) { 1; }
     else { 0; }
 }
 ################################################################################
@@ -3477,7 +3485,7 @@ sub isStrclass #: Profiled
 sub isReserved #: Profiled
 {
     my $self = shift;
-    if ($self -> {'RecordType'} == $RESERVED) { 1; }
+    if ($self -> {'RecordType'} == RESERVED) { 1; }
     else { 0; }
 }
 ################################################################################
@@ -3489,7 +3497,7 @@ sub isReserved #: Profiled
 sub isFormat #: Profiled
 {
     my $self = shift;
-    if ($self -> {'RecordType'} == $FORMAT) { 1; }
+    if ($self -> {'RecordType'} == FORMAT) { 1; }
     else { 0; }
 }
 ################################################################################
@@ -3501,7 +3509,7 @@ sub isFormat #: Profiled
 sub isMask #: Profiled
 {
     my $self = shift;
-    if ($self -> {'RecordType'} == $MASK) { 1; }
+    if ($self -> {'RecordType'} == MASK) { 1; }
     else { 0; }
 }
 ################################################################################
@@ -3513,7 +3521,7 @@ sub isMask #: Profiled
 sub isEndmasks #: Profiled
 {
     my $self = shift;
-    if ($self -> {'RecordType'} == $ENDMASKS) { 1; }
+    if ($self -> {'RecordType'} == ENDMASKS) { 1; }
     else { 0; }
 }
 ################################################################################
@@ -3525,7 +3533,7 @@ sub isEndmasks #: Profiled
 sub isLibdirsize #: Profiled
 {
     my $self = shift;
-    if ($self -> {'RecordType'} == $LIBDIRSIZE) { 1; }
+    if ($self -> {'RecordType'} == LIBDIRSIZE) { 1; }
     else { 0; }
 }
 ################################################################################
@@ -3537,7 +3545,7 @@ sub isLibdirsize #: Profiled
 sub isLibsecur #: Profiled
 {
     my $self = shift;
-    if ($self -> {'RecordType'} == $LIBSECUR) { 1; }
+    if ($self -> {'RecordType'} == LIBSECUR) { 1; }
     else { 0; }
 }
 ################################################################################
@@ -3549,17 +3557,17 @@ sub getRecordData #: Profiled
 {
     my $self = shift;
     my $dt = $self -> {'DataType'};
-    if ($dt==$NO_DATA)
+    if ($dt==NO_DATA)
     {
         return '';
     }
-    elsif ($dt==$INTEGER_2 || $dt==$INTEGER_4 || $dt==$REAL_8)
+    elsif ($dt==INTEGER_2 || $dt==INTEGER_4 || $dt==REAL_8)
     {
         my $stuff = $self -> {'CurrentDataList'};
         $stuff =~ s|^,||;
         return(split(/,/,$stuff));
     }
-    elsif ($dt==$ACSII_STRING)
+    elsif ($dt==ACSII_STRING)
     {
         my $stuff = $self -> {'CurrentDataList'};
         $stuff =~ s|\0||g;
@@ -3583,13 +3591,21 @@ sub skipGds2RecordData #: Profiled
 {
     my $self = shift;
     $self -> readGds2RecordHeader() if ($self -> {'HEADER'} <= 0); ## safety
+    if (TIMER_ON)
+    {
+        $G_timer -> reset();
+        $G_timer -> start('skipGds2RecordData');
+    }
     $self -> {'HEADER'} = 0;
     $self -> {'INDATA'} = 1;
-    my $bytesLeft = $self -> {'Length'} - 4; ## 4 should have been just read by readGds2RecordHeader
-    #my $data;
-    #read($self -> {'FileHandle'},$data,$bytesLeft);
-    seek($self -> {'FileHandle'},$bytesLeft,SEEK_CUR); ## seems to run a little faster than read
-    $self -> {'DataIndex'}=-1;
+    ## 4 should have been just read by readGds2RecordHeader
+    seek($self -> {'FileHandle'},$self -> {'Length'} - 4,SEEK_CUR); ## seek seems to run a little faster than read
+    $self -> {'DataIndex'} = -1;
+    if (TIMER_ON)
+    {
+        $G_timer -> stop;
+        $G_timer -> report;
+    }
     return 1;
 }
 ################################################################################
@@ -3598,7 +3614,7 @@ sub skipGds2RecordData #: Profiled
 sub returnNumCoords #: Profiled
 {
     my $self = shift;
-    if ($self -> {'RecordType'} == $XY)  ## 4 byte signed integer
+    if ($self -> {'RecordType'} == XY)  ## 4 byte signed integer
     {
         int(($self -> {'Length'} - 4) / 8);
     }

@@ -12,3 +12,7 @@ Makefile.PL created by h2xs 1.20 with options
 1.1.1 Started adding tests. Needed to make a change to little-endian
       record read.
 
+1.2.0 Added a bunch of constants. Starting to look at speed-ups. Write
+      year out as years since 1900 since Cadence pipo has problems with
+	  ISO type date (2001 v.s. 101)
+
