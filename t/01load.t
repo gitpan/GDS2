@@ -1,6 +1,5 @@
-# Before `make install' is performed this script should be runnable with
-# `make test'. After `make install' it should work as `perl test.pl'
-
+# Before `Build install' is performed this script should be runnable with
+# `Build test'. After `Build install' it should work as `perl t/01load.t'
 ######################### We start with some black magic to print on failure.
 
 # Change 1..1 below to 1..last_test_to_print .

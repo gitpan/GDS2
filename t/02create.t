@@ -1,5 +1,5 @@
-# Before `make install' is performed this script should be runnable with
-# `make test'. After `make install' it should work as `perl test.pl'
+# Before `Build install' is performed this script should be runnable with
+# `Build test'. After `Build install' it should work as `perl t/02create.t'
 
 ######################### We start with some black magic to print on failure.
 
@@ -24,6 +24,7 @@ sub ok
     my ($n, $result, @info) = @_;
     if ($result) {
         print "ok $n\n";
+        unlink "test.gds";
     }
     else {
         print "not ok $n\n";

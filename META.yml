@@ -1,7 +1,7 @@
 --- #YAML:1.0
 name: GDS2
-version: 1.32
-license: artistic
+version: 2.01
+license: perl
 distribution_type: module
 requires:
   perl: 5.6.0

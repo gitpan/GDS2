@@ -1,5 +1,5 @@
-BEGIN { $| = 1; print "1..2\n"; }
-END {print "not ok 3\n" unless $loaded;}
+BEGIN { $| = 1; $loaded = 0; print "1..2\n"; }
+my $loaded;
 use GDS2;
 sub ok 
 {
@@ -14,7 +14,7 @@ sub ok
 }
 
 $loaded = 1;
-print "ok 1\n";
+ok(1,$loaded,'problem with GDS2 load.');
 
 open(DUMPIN,"TEST.dump") or die "Unable to read TEST.dump because $!";
 my $gds2FileOut = new GDS2(-fileName => ">testdump.gds");
@@ -69,5 +69,11 @@ while (<DUMPIN>)
 }
 close DUMPIN;
 close DUMPOUT;
-ok 2,$good==1,'problem with ascii dump.';
+if ($good)
+{
+    unlink"testdump.gds";
+    unlink "dump.out";
+}
+ok(2,$good,'problem with ascii dump.');
+0;
 
