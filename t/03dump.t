@@ -36,7 +36,7 @@ while (<DUMPIN>)
     }
     else
     {
-        print "WARNING: Unable to parse '$line'\n";
+        print STDERR "\nWARNING: Unable to parse '$line'\n";
     }
 }
 $gds2FileOut -> close;
@@ -53,13 +53,19 @@ close DUMPOUT;
 my $good=1;
 open(DUMPOUT,"dump.out") or die "Unable to read dump.out $!";
 open(DUMPIN,"TEST.dump") or die "Unable to read TEST.dump because $!";
+my $lineCnt=0;
 while (<DUMPIN>)
 {
+    $lineCnt++;
     chomp;
     my $line1=$_;
     my $line2 = <DUMPOUT>;
     chomp $line2;
-    $good = 0 if ($line1 ne $line2);
+    if ($line1 ne $line2)
+    {
+        $good = 0;
+        print STDERR "\nline $lineCnt> old:$line1 != new:$line2\n";
+    }
 }
 close DUMPIN;
 close DUMPOUT;

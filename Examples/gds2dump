@@ -1,12 +1,114 @@
 #!/usr/bin/perl -w
-require 5;
+require 5.006;
 use strict;
-$\="\n";
+our $VERSION = '1.0';
+use Getopt::Long qw(GetOptions);
 use GDS2;
-my $fileName = $ARGV[0];
-my $gds2File = new GDS2(-fileName => $fileName);
-while ($gds2File -> readGds2Record) 
+$\="\n";
+## subs used
+sub printUsage();
+sub printVersion();
+sub getHomeDir($);
+
+## process command line...
+GetOptions(
+           'help'       => \&printUsage,
+           'version'    => \&printVersion,
+          ) || printUsage();
+          
+my $fileNameIn = '';
+$fileNameIn = shift if ($#ARGV >= 0);
+printUsage() if ($#ARGV >= 0);
+
+## take care of things we need from user that were not 
+## supplied on command line
+if ($fileNameIn eq '')
 {
-    print $gds2File -> returnRecordAsString;
+    my $notDone = 9; #limit for how many times we will ask
+    while ($notDone)
+    {
+        printf("GDS2 file to read: ");
+        $fileNameIn = <STDIN>;
+        chomp $fileNameIn;
+        $notDone = 0 if ($fileNameIn ne '');
+    }
+    printUsage() if ($fileNameIn eq '');
 }
+
+###############################################################################
+######## OK we are finally ready to go to work... :-)
+my $gds2FileIn = new GDS2(-fileName => $fileNameIn);
+while ($gds2FileIn -> readGds2Record) 
+{
+    print $gds2FileIn -> returnRecordAsString;
+}
+
+## subroutines...
+ 
+################################################################################ 
+sub printVersion()
+{
+    print $main::VERSION;
+    exit 0;
+}
+
+################################################################################ 
+sub printUsage()
+{
+    print <<EOHELP;
+  gds2dump rev $main::VERSION
+    
+Usage:
+  gds2dump [options] gds_file_to_read 
+      
+Synopsis:
+  Dumps GDS2 file out in an ascii format that preserves the data contained 
+  therein.
+  
+Options:
+  -help
+    print help and exit
+    
+  -version
+    print version and exit
+  
+Example:
+  gds2dump test.gds > test.dumpgds
+
+EOHELP
+
+    exit 1;
+}
+
+################################################################################
+
+__END__
+
+=pod
+
+=head1 NAME
+
+gds2dump - dumps GDS2 file out in an ascii format that preserves the data contained therein.
+
+
+=head1 USAGE
+
+gds2dump [ options ] [gds_file_to_read]
+
+
+=head1 OPTIONS
+
+  -help
+    print help and exit
+    
+  -version
+    print version and exit
+
+
+=head1 EXAMPLE
+
+gds2dump test.gds > test.dumpgds
+
+
+=cut
 

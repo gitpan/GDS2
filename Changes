@@ -36,3 +36,6 @@ Makefile.PL created by h2xs 1.20 with options
 
 1.2.5 a better BIT_ARRAY solution for little-endian machines.
 
+1.2.6 Cygwin Perl was printing out "1.e-9" others "1e-9" for UNITS updated 
+      to strip unneeded "."
+

@@ -1,7 +1,7 @@
 package GDS2; 
 {
 require 5.006;
-$GDS2::VERSION = '1.2.5'; 
+$GDS2::VERSION = '1.2.6'; 
 ## Note: '@ ( # )' used by the what command  E.g. what GDS2.pm
 $GDS2::revision = '@(#) $RCSfile: GDS2.pm,v $ $Revision: 1.57 $ $Date: 2002-03-27 23:25:45-06 $';
 use strict;
@@ -398,7 +398,7 @@ sub new #: Profiled
     {
         flock($fileHandle,$lockMode) or die "File lock on $fileName failed because $!";
     }
-    binmode $fileHandle,':raw'; ## may need 5.6 for discipline
+    binmode $fileHandle,':raw'; ## may need Perl 5.6 for discipline
     $self -> {'FileHandle'} = $fileHandle;
     $self -> {'FileName'}   = $fileName; ## the gds2 filename
     $self -> {'EOLIB'}      = 0;         ## end of library flag
@@ -437,7 +437,7 @@ sub close #: Profiled
     if ((defined $markEnd)&&($markEnd))
     {
         my $fh = $self -> {'FileHandle'};
-        print $fh "\x04";
+        print $fh "\x1a\x04"; # a ^Z and a ^D
     }
     close $self -> {'FileHandle'};
 }
@@ -1478,6 +1478,7 @@ sub printGds2Record #: Profiled
         }
 
         my $recordDataType = $RecordTypeData{$type};
+        
         if (defined $dataString)
         {
             $dataString=~s|^\s+||; ## clean-up
@@ -1866,6 +1867,7 @@ sub readGds2RecordData #: Profiled
             }
             else
             {
+                ### this works because UUnits and DBUnits are 1st reals in GDS2 file
                 $real = int(($real+($self -> {'UUnits'}/$resolution))/$self -> {'UUnits'})*$self -> {'UUnits'} if ($self -> {'UUnits'} != 0); ## "rounds" off
             }
             $self -> {'RecordData'}[$i] = $real;
@@ -1949,7 +1951,8 @@ sub returnRecordAsString() #: Profiled
     $string .= $ElmSpace if (!(($self -> {'RecordType'} == TEXT) || ($self -> {'RecordType'} == PATH) || 
                                ($self -> {'RecordType'} == BOUNDARY) || ($self -> {'RecordType'} == SREF) || 
                                ($self -> {'RecordType'} == AREF)));
-    $string .= $RecordTypeStrings[$self -> {'RecordType'}];
+    my $recordType = $RecordTypeStrings[$self -> {'RecordType'}];
+    $string .= $recordType;
     my $i = 0;
     while ($i <= $self -> {'DataIndex'})
     {
@@ -1969,6 +1972,7 @@ sub returnRecordAsString() #: Profiled
         )
         {
             $string .= '  '.$self -> {'RecordData'}[$i];
+            $string =~ s|(\d)\.e|$1e| if ($recordType eq 'UNITS'); ## perl on Cygwin prints "1.e-9" others "1e-9"
         }
         elsif ($self -> {'DataType'} == INTEGER_4)
         {
@@ -3843,7 +3847,7 @@ sub roundNum #: Profiled
     my $self = shift;
     my $num = shift;
     my $places = shift;
-    eval(sprintf("%.$places"."f\n",$num));
+    sprintf("%.${places}f",$num);
 }
 ################################################################################
 

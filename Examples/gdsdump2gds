@@ -82,7 +82,7 @@ while (<DUMP>)
         print "WARNING: Unable to parse '$line'";
     }
 }
-$gds2FileOut -> close;
+$gds2FileOut -> close(-markEnd => 1);
 close DUMP;
 exit 0;
 
