@@ -1,5 +1,9 @@
 Changes
+README
 GDS2.pm
 MANIFEST
 Makefile.PL
 test.pl
+Examples/gds2dump
+Examples/gdsdump2gds
+

@@ -1,0 +1,257 @@
+#!/usr/local/bin/perl -w
+require 5;
+$VERSION = do { my @r=(q$Revision: 1.1 $=~/\d+/g); sprintf "%d."."%02d"x$#r,@r }; 
+use strict;
+use Getopt::Long qw(GetOptions);
+use GDS2;
+$\="\n";
+## No need to edit next line ... modified automatically by RCS
+#'@(#) $RCSfile: gdsdump2gds.pl,v $ $Revision: 1.1 $ $Date: 2000-04-19 16:39:58-05 $';
+## subs used
+sub printUsage();
+sub printVersion();
+
+## process command line...
+GetOptions(
+           'help'       => \&printUsage,
+           'version'    => \&printVersion,
+          ) || printUsage();
+          
+my $fileNameIn = '';
+$fileNameIn = shift if ($#ARGV >= 0);
+my $fileNameOut = '';
+$fileNameOut = shift if ($#ARGV >= 0);
+printUsage() if ($#ARGV >= 0);
+
+## take care of things we need from user that were not 
+## supplied on command line
+if ($fileNameIn eq '')
+{
+    my $notDone = 9; #limit for how many times we will ask
+    while ($notDone)
+    {
+        printf("Dump file to read: ");
+        $fileNameIn = <STDIN>;
+        chomp $fileNameIn;
+        $notDone = 0 if ($fileNameIn ne '');
+    }
+    printUsage() if ($fileNameIn eq '');
+}
+if ($fileNameOut eq '')
+{
+    my $notDone = 9; #limit for how many times we will ask
+    while ($notDone)
+    {
+        printf("GDS2 file to create: ");
+        $fileNameOut = <STDIN>;
+        chomp $fileNameOut;
+        $notDone = 0 if ($fileNameOut ne '');
+    }
+    printUsage() if ($fileNameOut eq '');
+}
+if ($fileNameIn eq $fileNameOut)
+{
+    print "ERROR: input and output files can not be the same."; 
+    printUsage();
+}
+
+###############################################################################
+######## OK we are finally ready to go to work... :-)
+open(DUMP,$fileNameIn) or die "Unable to read $fileNameIn because $!";
+my $gds2FileOut = new GDS2(-fileName => ">$fileNameOut");
+my $line;
+my $type;
+my $dataString;
+while (<DUMP>)
+{
+    $line=$_;
+    $line=~s|^\s+||; ## make following comparisions easier...
+    next if (m|^#|); ## see # as here-to-line-end comment
+    chomp $line;
+    $line=~s|#.*||;
+    $line=~s|$| |g;  ## for match below
+    $dataString='';
+    if ($line =~ m|^([a-z]+) (.*)|i)
+    {
+        $type=$1;
+        $dataString=$2 if (defined $2);
+        $gds2FileOut -> printGds2Record(-type=>$type,-asciiData=>$dataString)
+    }
+    else
+    {
+        print "WARNING: Unable to parse '$line'";
+    }
+}
+$gds2FileOut -> close;
+close DUMP;
+exit 0;
+
+## subroutines...
+ 
+################################################################################ 
+sub printVersion()
+{
+    print $main::VERSION;
+    exit 0;
+}
+
+################################################################################ 
+sub printUsage()
+{
+    print <<EOHELP;
+  gdsdump2gds rev $main::VERSION
+    
+Usage:
+  gdsdump2gds [options] gdsdump_file_to_read gds_file_to_create 
+      
+Synopsis:
+  Creates a GDS2 file from an ASCII dumpgds/gds2dump file. 
+  
+Options:
+  -help
+    print help and exit
+    
+  -version
+    print version and exit
+  
+Example:
+  gdsdump2gds test.gdsdump test.gds
+
+Limitations:
+  Each GDS2 record must be on its own line.
+
+EOHELP
+
+    exit 1;
+}
+
+################################################################################
+
+__END__
+
+=pod
+
+=head1 NAME
+
+gdsdump2gds - creates a GDS2 file from an ASCII dumpgds/gds2dump file. 
+
+
+=head1 USAGE
+
+gdsdump2gds [ options ] [gdsdump_file_to_read] [gds_file_to_create]
+
+
+=head1 OPTIONS
+
+  -help
+    print help and exit
+    
+  -version
+    print version and exit
+
+
+=head1 EXAMPLE
+
+gdsdump2gds test.dumpgds test.gds
+
+
+=head1 LIMITATIONS:
+
+Each GDS2 record must be on its own line.
+
+
+=head1 FILE FORMAT
+
+=head2 Backus-naur representation of GDS2 stream syntax:
+
+ ################################################################################
+ #  <STREAM FORMAT>::= HEADER BGNLIB [LIBDIRSIZE] [SRFNAME] [LIBSECR]           #
+ #                     LIBNAME [REFLIBS] [FONTS] [ATTRTABLE] [GENERATIONS]      #
+ #                     [<FormatType>] UNITS {<structure>}* ENDLIB               #
+ #                                                                              #
+ #  <FormatType>::=    FORMAT | FORMAT {MASK}+ ENDMASKS                         #
+ #                                                                              #
+ #  <structure>::=     BGNSTR STRNAME [STRCLASS] {<element>}* ENDSTR            #
+ #                                                                              #
+ #  <element>::=       {<boundary> | <path> | <SREF> | <AREF> | <text> |        #
+ #                      <node> | <box} {<property>}* ENDEL                      #
+ #                                                                              #
+ #  <boundary>::=      BOUNDARY [ELFLAGS] [PLEX] LAYER DATATYPE XY              #
+ #                                                                              #
+ #  <path>::=          PATH [ELFLAGS] [PLEX] LAYER DATATYPE [PATHTYPE]          #
+ #                     [WIDTH] XY                                               #
+ #                                                                              #
+ #  <SREF>::=          SREF [ELFLAGS] [PLEX] SNAME [<strans>] XY                #
+ #                                                                              #
+ #  <AREF>::=          AREF [ELFLAGS] [PLEX] SNAME [<strans>] COLROW XY         #
+ #                                                                              #
+ #  <text>::=          TEXT [ELFLAGS] [PLEX] LAYER <textbody>                   #
+ #                                                                              #
+ #  <textbody>::=      TEXTTYPE [PRESENTATION] [PATHTYPE] [WIDTH] [<strans>] XY #
+ #                     STRING                                                   #
+ #                                                                              #
+ #  <strans>::=        STRANS [MAG] [ANGLE]                                     #
+ #                                                                              #
+ #  <node>::=          NODE [ELFLAGS] [PLEX] LAYER NODETYPE XY                  #
+ #                                                                              #
+ #  <box>::=           BOX [ELFLAGS] [PLEX] LAYER BOXTYPE XY                    #
+ #                                                                              #
+ #  <property>::=      PROPATTR PROPVALUE                                       #
+ ################################################################################
+
+=head2 example file
+
+ HEADER 3
+ BGNLIB 99 8 4 20 36 16  100 4 18 17 14 16
+ LIBNAME  'and2b'
+ UNITS  0.001 1e-09
+ BGNSTR  96 1 16 12 47 41  96 1 16 12 47 41
+   STRNAME  'AND2B'
+   BOUNDARY
+     LAYER  10
+     DATATYPE  0
+     XY  8.2 -2.1  8.2 9.1  -2.1 9.1  -2.1 -2.1  8.2 -2.1
+   ENDEL
+   SREF
+     SNAME  'SMARK'
+     XY  0  0
+   ENDEL
+   TEXT
+     LAYER  59
+     TEXTTYPE  0
+     PRESENTATION  0000000000001000
+     PATHTYPE  0
+     STRANS  0000000000000000
+     MAG  0.1
+     XY  2.05  1.4
+     STRING  'VDD'
+   ENDEL
+   ENDSTR
+ BGNSTR  96 1 16 12 47 41  96 1 16 12 47 41
+   STRNAME  'SMARK'
+   PATH
+     LAYER  0
+     DATATYPE  0
+     PATHTYPE  0
+     WIDTH  0
+     XY  -0.7 -0.7  1.4 1.4  2.8 1.4
+   ENDEL
+   PATH
+     LAYER  0
+     DATATYPE  0
+     PATHTYPE  0
+     WIDTH  0
+     XY  -0.7 0.7  0.7 -0.7
+   ENDEL
+   PATH
+     LAYER  0
+     DATATYPE  0
+     PATHTYPE  0
+     WIDTH  0
+     XY  0.7 0.7  1.75 0.7
+   ENDEL
+ ENDSTR
+ ENDLIB
+
+=cut
+

@@ -1,0 +1,12 @@
+This is GDS2, a module for quickly creating programs to read, 
+write, and manipulate GDS2 (GDSII) stream files.
+
+Originally developed on big endian machines, it should 
+now work on little endian machines too.
+
+Currently the I/O of the module is not too speedy. Processing
+a 10Mg file on my 800MhzPIII takes close to 3 minutes.
+
+Send feedback/suggestions to
+KenSchumack@mediaone.net
+

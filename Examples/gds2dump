@@ -1,0 +1,12 @@
+#!/usr/local/bin/perl -w
+require 5;
+use strict;
+$\="\n";
+use GDS2;
+my $fileName = $ARGV[0];
+my $gds2File = new GDS2(-fileName => $fileName);
+while ($gds2File -> readGds2Record) 
+{
+    print $gds2File -> returnRecordAsString;
+}
+

@@ -1,33 +1,21 @@
 package GDS2; 
 {
 require 5.004;
-$GDS2::VERSION = '1.0'; 
+$GDS2::VERSION = '1.1'; 
 ## Note: '@ ( # )' used by the what command  E.g. what GDS2.pm
-$GDS2::revision = '@(#) $RCSfile: GDS2.pm,v $ $Revision: 1.44 $ $Date: 2001-10-05 00:58:39-05 $';
+$GDS2::revision = '@(#) $RCSfile: GDS2.pm,v $ $Revision: 1.45 $ $Date: 2001-10-27 23:07:29-05 $';
 use strict;
+use Config;
+use IO::File;
 #use warnings; ## I think you need 5.6 to use this 
 no strict qw( refs );
-
 my $haveFlock=1; ## some systems still may not have this...manually change
-
-my $OS='';
-if (! defined $^O) 
-{
-    require Config;
-    $OS = $Config::Config{'osname'} if ($Config::Config{'osname'} ne ''); ## silly way not to get -w warning...
-}
-else
-{
-    $OS = $^O;
-}
-my $isLittleEndian = 0;
-$isLittleEndian = 1 if (($OS=~/win/i) || ($OS=~/vms/i)); ## mswin32 cygwin vms
-
 if ($haveFlock)
 {
 use Fcntl q(:flock);  # import LOCK_* constants
 }
-use IO::File;
+my $isLittleEndian = 0; #default
+$isLittleEndian = 1 if ($Config{'byteorder'} =~ m|^1|); ## mswin32 cygwin vms
 
 # POD documentation is sprinkled throughout the file in an 
 # attempt at Literate Programming style (which Perl only party supports ...
@@ -322,7 +310,7 @@ my %RecordTypeData=(
 $GDS2::DefaultClass = 'GDS2' unless defined $GDS2::DefaultClass;
 my $StrSpace='';
 my $ElmSpace='';
-my $G_fudge=0.00001; ## to take care of floating point representation problems
+my $G_epsilon=0.00001; ## to take care of floating point representation problems
 
 =pod
 =head1 NAME
@@ -396,6 +384,7 @@ sub new
     {
         flock($fileHandle,$lockMode) or die "File lock on $fileName failed because $!";
     }
+    binmode $fileHandle,':raw';
     $self -> {'FileHandle'} = $fileHandle;
     $self -> {'FileName'}   = $fileName; ## the gds2 filename
     $self -> {'EOLIB'}      = 0;         ## end of library flag
@@ -413,6 +402,7 @@ sub new
     $self -> {'InStr'}      = 0;         ##flag for write error checking
     $self -> {'InElm'}      = 0;         ##flag for write error checking
     $self -> {'Resolution'} = $resolution;
+    $self -> {'UsingPrettyPrint'} = 0;   ## print as string ...
     $self;
 }
 ################################################################################
@@ -481,8 +471,6 @@ sub printInitLib
 sub printBgnstr
 {
     my($self,%arg) = @_;
-    my ($csec,$cmin,$chour,$cmday,$cmon,$cyear,$cwday,$cyday,$cisdst);
-    my ($msec,$mmin,$mhour,$mmday,$mmon,$myear,$mwday,$myday,$misdst);
 
     my $strName = $arg{'-name'};
     if (! defined $strName)
@@ -490,6 +478,7 @@ sub printBgnstr
         die "bgnStr expects a structure name. Missing -name => 'name' $!";
     }
     my $createTime = $arg{'-createTime'};
+    my ($csec,$cmin,$chour,$cmday,$cmon,$cyear,$cwday,$cyday,$cisdst);
     if (defined $createTime)
     {
         ($csec,$cmin,$chour,$cmday,$cmon,$cyear,$cwday,$cyday,$cisdst) = localtime($createTime);
@@ -501,6 +490,7 @@ sub printBgnstr
     $cmon++;
 
     my $modTime = $arg{'-modTime'};
+    my ($msec,$mmin,$mhour,$mmday,$mmon,$myear,$mwday,$myday,$misdst);
     if (defined $modTime)
     {
         ($msec,$mmin,$mhour,$mmday,$mmon,$myear,$mwday,$myday,$misdst) = localtime($modTime);
@@ -575,8 +565,8 @@ sub printPath
     my @xyTmp=(); ##don't pollute array passed in
     for(my $i=0;$i<=$#$xy;$i++) ## e.g. 3.4 in -> 3400 out
     {
-        if ($xy -> [$i] >= 0) { push @xyTmp,int((($xy -> [$i])*$resolution)+$G_fudge);}
-        else                  { push @xyTmp,int((($xy -> [$i])*$resolution)-$G_fudge);}
+        if ($xy -> [$i] >= 0) { push @xyTmp,int((($xy -> [$i])*$resolution)+$G_epsilon);}
+        else                  { push @xyTmp,int((($xy -> [$i])*$resolution)-$G_epsilon);}
     }
     $self -> printGds2Record(-type => 'XY',-data => \@xyTmp);
     $self -> printGds2Record(-type => 'ENDEL');
@@ -627,22 +617,22 @@ sub printBoundary
     }
     for(my $i=0;$i<=$#$xy;$i++) ## e.g. 3.4 in -> 3400 out
     {
-        if ($xy -> [$i] >= 0) {$xy -> [$i] = int((($xy -> [$i])*$resolution)+$G_fudge);}
-        else                  {$xy -> [$i] = int((($xy -> [$i])*$resolution)-$G_fudge);}
+        if ($xy -> [$i] >= 0) {$xy -> [$i] = int((($xy -> [$i])*$resolution)+$G_epsilon);}
+        else                  {$xy -> [$i] = int((($xy -> [$i])*$resolution)-$G_epsilon);}
     }
     my @xyTmp=(); ##don't pollute array passed in
     for(my $i=0;$i<=$#$xy;$i++) ## e.g. 3.4 in -> 3400 out
     {
-        if ($xy -> [$i] >= 0) {push @xyTmp,int((($xy -> [$i])*$resolution)+$G_fudge);}
-        else                  {push @xyTmp,int((($xy -> [$i])*$resolution)-$G_fudge);}
+        if ($xy -> [$i] >= 0) {push @xyTmp,int((($xy -> [$i])*$resolution)+$G_epsilon);}
+        else                  {push @xyTmp,int((($xy -> [$i])*$resolution)-$G_epsilon);}
     }
     ## gds expects square to have 5 coords (closure)
     if (($xy -> [0] != ($xy -> [($#$xy - 1)])) && ($xy -> [1] != ($xy -> [$#$xy])))
     {
-        if ($xy -> [0] >= 0) {push @xyTmp,int((($xy -> [0])*$resolution)+$G_fudge);}
-        else                 {push @xyTmp,int((($xy -> [0])*$resolution)-$G_fudge);}
-        if ($xy -> [1] >= 0) {push @xyTmp,int((($xy -> [1])*$resolution)+$G_fudge);}
-        else                 {push @xyTmp,int((($xy -> [1])*$resolution)-$G_fudge);}
+        if ($xy -> [0] >= 0) {push @xyTmp,int((($xy -> [0])*$resolution)+$G_epsilon);}
+        else                 {push @xyTmp,int((($xy -> [0])*$resolution)-$G_epsilon);}
+        if ($xy -> [1] >= 0) {push @xyTmp,int((($xy -> [1])*$resolution)+$G_epsilon);}
+        else                 {push @xyTmp,int((($xy -> [1])*$resolution)-$G_epsilon);}
     }
     $self -> printGds2Record(-type => 'XY',-data => \@xyTmp);
     $self -> printGds2Record(-type => 'ENDEL');
@@ -723,8 +713,8 @@ sub printSref
     my @xyTmp=(); ##don't pollute array passed in
     for(my $i=0;$i<=$#$xy;$i++) ## e.g. 3.4 in -> 3400 out
     {
-        if ($xy -> [$i] >= 0) {push @xyTmp,int((($xy -> [$i])*$resolution)+$G_fudge);}
-        else                  {push @xyTmp,int((($xy -> [$i])*$resolution)-$G_fudge);}
+        if ($xy -> [$i] >= 0) {push @xyTmp,int((($xy -> [$i])*$resolution)+$G_epsilon);}
+        else                  {push @xyTmp,int((($xy -> [$i])*$resolution)-$G_epsilon);}
     }
     $self -> printGds2Record(-type => 'XY',-data => \@xyTmp);
     $self -> printGds2Record(-type => 'ENDEL');
@@ -826,8 +816,8 @@ sub printAref
     my @xyTmp=(); ##don't pollute array passed in
     for(my $i=0;$i<=$#$xy;$i++) ## e.g. 3.4 in -> 3400 out
     {
-        if ($xy -> [$i] >= 0) {push @xyTmp,int((($xy -> [$i])*$resolution)+$G_fudge);}
-        else                  {push @xyTmp,int((($xy -> [$i])*$resolution)-$G_fudge);}
+        if ($xy -> [$i] >= 0) {push @xyTmp,int((($xy -> [$i])*$resolution)+$G_epsilon);}
+        else                  {push @xyTmp,int((($xy -> [$i])*$resolution)-$G_epsilon);}
     }
     $self -> printGds2Record(-type => 'XY',-data => \@xyTmp);
     $self -> printGds2Record(-type => 'ENDEL');
@@ -888,8 +878,8 @@ sub printText
     {
         die "printText expects a x coord. Missing -xy=>\@array or -x => 'num' $!";
     }
-    if ($x>=0) {$x = int(($x*$resolution)+$G_fudge);}
-    else       {$x = int(($x*$resolution)-$G_fudge);}
+    if ($x>=0) {$x = int(($x*$resolution)+$G_epsilon);}
+    else       {$x = int(($x*$resolution)-$G_epsilon);}
 
     my $y2 = $arg{'-x'};
     if (defined $y2)
@@ -900,8 +890,8 @@ sub printText
     {
         die "printText expects a y coord. Missing -xy=>\@array or -y => 'num' $!";
     }
-    if ($y>=0) {$y = int(($y*$resolution)+$G_fudge);}
-    else       {$y = int(($y*$resolution)-$G_fudge);}
+    if ($y>=0) {$y = int(($y*$resolution)+$G_epsilon);}
+    else       {$y = int(($y*$resolution)-$G_epsilon);}
 
     my $layer = $arg{'-layer'};
     if (! defined $layer)
@@ -946,7 +936,6 @@ sub printText
     elsif (defined $right) {$horizontal = '10';}
     else                   {$horizontal = '01';} ## center
     my $presString = "0000000000$font$vertical$horizontal";
-
 
     my $mag = $arg{'-mag'};
     if ((! defined $mag)||($mag <= 0))
@@ -1087,8 +1076,8 @@ sub saveGds2Record
             $dataString=~s|^\s+||; ## clean-up
             $dataString=~s|\s+$||;
             $dataString=~s|\s+| |g if ($dataString !~ m|'|); ## don't compress spaces in strings...
-            $dataString=~s|'$||; #for strings
-            $dataString=~s|^'||; #for strings
+            $dataString=~s|'$||; #'for strings
+            $dataString=~s|^'||; #'for strings
             if (($recordDataType == $BIT_ARRAY)||($recordDataType == $ACSII_STRING))
             {
                 $data = $dataString;
@@ -1103,8 +1092,8 @@ sub saveGds2Record
                     my @xyTmp=();
                     for(my $i=0;$i<$numDataElements;$i++) ## e.g. 3.4 in -> 3400 out
                     {
-                        if ($data[$i]>=0) {push @xyTmp,int((($data[$i])*$resolution)+$G_fudge);}
-                        else              {push @xyTmp,int((($data[$i])*$resolution)-$G_fudge);}
+                        if ($data[$i]>=0) {push @xyTmp,int((($data[$i])*$resolution)+$G_epsilon);}
+                        else              {push @xyTmp,int((($data[$i])*$resolution)-$G_epsilon);}
                     }
                     @data=@xyTmp;
                 }
@@ -1197,8 +1186,8 @@ sub saveGds2Record
 
                 for (my $i=1; $i<=7; $i++) 
                 {
-                    if ($real>=0) {$byte = int(($real*256.0)+$G_fudge);}
-                    else          {$byte = int(($real*256.0)-$G_fudge);}
+                    if ($real>=0) {$byte = int(($real*256.0)+$G_epsilon);}
+                    else          {$byte = int(($real*256.0)-$G_epsilon);}
                     $record .= pack('C',$byte);
                     $real = $real * 256.0 - ($byte + 0.0);
                 }
@@ -1271,9 +1260,91 @@ sub printGds2Record
     my $data = '';
     if ($type eq 'RECORD') ## special case...
     {
-        print($fh $data[0]);
+        if ($isLittleEndian)
+        {
+            my $length = substr($data[0],0,2);
+            my $recordLength = unpack 'v',$length;
+            $length = reverse $length;
+            print($fh $length);
+
+            my $recordType = substr($data[0],2,1);
+            print($fh $recordType);
+            $recordType = unpack 'C',$recordType;
+            $type = $RecordTypeStrings[$recordType]; ## will use code below.....
+
+            my $dataType = substr($data[0],3,1);
+            print($fh $dataType);
+            $dataType = unpack 'C',$dataType;
+            if ($recordLength > 4)
+            {
+                my $lengthLeft = $recordLength - 4; ## length left
+                my $recordDataType = $RecordTypeData{$type};
+
+                if ($recordDataType == $BIT_ARRAY)
+                {
+                    my $bitLength = $lengthLeft * 8;
+                    my $value = pack("b$bitLength",$data[0]);
+                    print($fh $value);
+                }
+                elsif ($recordDataType == $INTEGER_2)
+                {
+                    my $binData = unpack 'b*',$data[0];
+                    my $intData = substr($binData,32); #skip 1st 4 bytes (length, recordType dataType):wq
+                    
+                    my ($byteInt2String,$byte2);
+                    for(my $i=0; $i<($lengthLeft/2); $i++)
+                    {
+                        $byteInt2String = reverse(substr($intData,0,16,''));
+                        $byte2=pack 'B16',reverse($byteInt2String);
+                        print($fh $byte2);
+                    }
+                }
+                elsif ($recordDataType == $INTEGER_4)
+                {
+                    my $binData = unpack 'b*',$data[0];
+                    my $intData = substr($binData,32); #skip 1st 4 bytes (length, recordType dataType)
+                    my ($byteInt4String,$byte4);
+                    for(my $i=0; $i<($lengthLeft/4); $i++)
+                    {
+                        $byteInt4String = reverse(substr($intData,0,32,''));
+                        $byte4=pack 'B32',reverse($byteInt4String);
+                        print($fh $byte4);
+                    }
+                }
+                elsif ($recordDataType == $REAL_4)  ## 4 byte real
+                {
+                    die "4-byte reals are not supported $!";
+                }
+                elsif ($recordDataType == $REAL_8)
+                {
+                    my $binData = unpack 'b*',$data[0];
+                    my $realData = substr($binData,32); #skip 1st 4 bytes (length, recordType dataType)
+                    my ($bit64String,$mantissa,$byteString,$byte);
+                    for(my $i=0; $i<($lengthLeft/8); $i++)
+                    {
+                        $bit64String = substr($realData,($i*64),64);
+                        print($fh pack 'b8',$bit64String);
+                        $mantissa = substr($bit64String,8,56);
+                        for(my $j=0; $j<7; $j++)
+                        {
+                            $byteString = substr($mantissa,($j*8),8);
+                            $byte=pack 'b8',$byteString;
+                            print($fh $byte);
+                        }
+                    }
+                }
+                elsif ($recordDataType == $ACSII_STRING)  ## ascii string (null padded)
+                {
+                    print($fh pack("a$lengthLeft",substr($data[0],4)));
+                }
+            }
+        }
+        else
+        {
+            print($fh $data[0]);
+        }
     }
-    else
+    else #if ($type ne 'RECORD') 
     {
         my $numDataElements = 0;
         my $resolution = $self -> {'Resolution'};
@@ -1295,7 +1366,7 @@ sub printGds2Record
         }
         else
         {
-            $snap = int(($snap*$resolution)+0.000001); ## i.e. 0.001 -> 1
+            $snap = int(($snap*$resolution)+$G_epsilon); ## i.e. 0.001 -> 1
         }
         if ($snap < 1)
         {
@@ -1322,8 +1393,8 @@ sub printGds2Record
             $dataString=~s|^\s+||; ## clean-up
             $dataString=~s|\s+$||;
             $dataString=~s|\s+| |g if ($dataString !~ m|'|); ## don't compress spaces in strings...
-            $dataString=~s|'$||; #for strings
-            $dataString=~s|^'||; #for strings
+            $dataString=~s|'$||; #'for strings
+            $dataString=~s|^'||; #'for strings
             if (($recordDataType == $BIT_ARRAY)||($recordDataType == $ACSII_STRING))
             {
                 $data = $dataString;
@@ -1338,8 +1409,8 @@ sub printGds2Record
                     my @xyTmp=();
                     for(my $i=0;$i<$numDataElements;$i++) ## e.g. 3.4 in -> 3400 out
                     {
-                        if ($data[$i]>=0) {push @xyTmp,int((($data[$i])*$resolution)+$G_fudge);}
-                        else              {push @xyTmp,int((($data[$i])*$resolution)-$G_fudge);}
+                        if ($data[$i]>=0) {push @xyTmp,int((($data[$i])*$resolution)+$G_epsilon);}
+                        else              {push @xyTmp,int((($data[$i])*$resolution)-$G_epsilon);}
                     }
                     @data=@xyTmp;
                 }
@@ -1368,49 +1439,68 @@ sub printGds2Record
             my $slen = length $data;
             $length = $slen + ($slen % 2); ## needs to be an even number
         }
-
-        my $recordLength = pack 'S',($length + 4); #1 2 bytes for length 3rd for recordType 4th for dataType
+        my $recordLength; ## 1st 2 bytes for length 3rd for recordType 4th for dataType
+        if ($isLittleEndian)
+        {
+            $recordLength = pack 'v',($length + 4);
+            $recordLength = reverse $recordLength;
+        }
+        else
+        {
+            $recordLength = pack 'S',($length + 4);
+        }
         print($fh $recordLength);
+
         my $recordType = pack 'C',$$type;  ## evals to GDS2::BGNSTR etc...
+        $recordType = reverse $recordType if ($isLittleEndian);
         print($fh $recordType);
 
         my $dataType   = pack 'C',$RecordTypeData{$type};
+        $dataType = reverse $dataType if ($isLittleEndian);
         print($fh $dataType);
 
         if ($recordDataType == $BIT_ARRAY)     ## bit array 
         {
             my $bitLength = $length * 8;
-            print($fh pack("B$bitLength",$data));
+            my $value = pack("B$bitLength",$data);
+            print($fh $value);
         }
         elsif ($recordDataType == $INTEGER_2)  ## 2 byte signed integer
         {
+            my $value;
             foreach my $num (@data)
             {
-                print($fh pack('s',$num));
+                $value = pack('s',$num);
+                $value = reverse $value if ($isLittleEndian);
+                print($fh $value);
             }
         }
         elsif ($recordDataType == $INTEGER_4)  ## 4 byte signed integer
         {
+            my $value;
             foreach my $num (@data)
             {
                 $num = scaleNum($num,$scale) if ($scale != 1);
                 $num = snapNum($num,$snap) if ($snap != 1);
-                print($fh pack('i',$num));
+                $value = pack('i',$num);
+                $value = reverse $value if ($isLittleEndian);
+                print($fh $value);
             }
         }
         elsif ($recordDataType == $REAL_8)  ## 8 byte real
         {
+            my ($real,$negative,$exponent,$value);
             foreach my $num (@data)
             {
-                my $real = $num;
-                my $negative = 0;
+                $real = $num;
+                $negative = 0;
                 if($num < 0.0) 
                 {
                     $negative = 1;
                     $real = 0 - $num;
                 }
 
-                my $exponent = 0;
+                $exponent = 0;
                 while($real >= 1.0) 
                 {
                     $exponent++;
@@ -1425,16 +1515,19 @@ sub printGds2Record
                         $real = ($real * 16.0);
                     }
                 }
-
                 if($negative) { $exponent += 192; }
                 else          { $exponent += 64; }
-                print($fh pack('C',$exponent));
+                $value = pack('C',$exponent);
+                $value = reverse $value if ($isLittleEndian);
+                print($fh $value);
 
                 for (my $i=1; $i<=7; $i++) 
                 {
-                    if ($real>=0) {$byte = int(($real*256.0)+$G_fudge);}
-                    else          {$byte = int(($real*256.0)-$G_fudge);}
-                    print($fh pack('C',$byte));
+                    if ($real>=0) {$byte = int(($real*256.0)+$G_epsilon);}
+                    else          {$byte = int(($real*256.0)-$G_epsilon);}
+                    my $value = pack('C',$byte);
+                    $value = reverse $value if ($isLittleEndian);
+                    print($fh $value);
                     $real = $real * 256.0 - ($byte + 0.0);
                 }
             }
@@ -1516,9 +1609,9 @@ sub readGds2RecordHeader
     $self -> {'RecordType'} = -1;
     $self -> {'HEADER'} = 1;
     $self -> {'INDATA'} = 0;
-    return if $self -> {'EOLIB'}; ## no sense reading null padding..
+    return '' if ($self -> {'EOLIB'}); ## no sense reading null padding..
     my $data;
-    if (read($self -> {'FileHandle'},$data,2))
+    if (read($self -> {'FileHandle'},$data,2)) ### length
     {
         $data = reverse $data if ($isLittleEndian);
         $self -> {'Record'} .= $data;
@@ -1529,27 +1622,30 @@ sub readGds2RecordHeader
         return 0;
     }
 
-    if (read($self -> {'FileHandle'},$data,1))
+    if (read($self -> {'FileHandle'},$data,1)) ## record type 
     {
         $data = reverse $data if ($isLittleEndian);
         $self -> {'Record'} .= $data;
         $self -> {'RecordType'} = unpack 'C',$data; 
         $self -> {'EOLIB'} = 1 if (($self -> {'RecordType'}) == $ENDLIB);
 
-        $StrSpace = ''   if (($self -> {'RecordType'}) == $ENDSTR);
-        $StrSpace = '  ' if (($self -> {'RecordType'}) == $BGNSTR);
+        if ($self -> {'UsingPrettyPrint'})
+        {
+            $StrSpace = ''   if (($self -> {'RecordType'}) == $ENDSTR);
+            $StrSpace = '  ' if (($self -> {'RecordType'}) == $BGNSTR);
 
-        $ElmSpace = '  ' if ((($self -> {'RecordType'}) == $TEXT) || (($self -> {'RecordType'}) == $PATH) || 
-                             (($self -> {'RecordType'}) == $BOUNDARY) || (($self -> {'RecordType'}) == $SREF) || 
-                             (($self -> {'RecordType'}) == $AREF));
-        $ElmSpace = ''   if (($self -> {'RecordType'}) == $ENDEL);
+            $ElmSpace = '  ' if ((($self -> {'RecordType'}) == $TEXT) || (($self -> {'RecordType'}) == $PATH) || 
+                                 (($self -> {'RecordType'}) == $BOUNDARY) || (($self -> {'RecordType'}) == $SREF) || 
+                                 (($self -> {'RecordType'}) == $AREF));
+            $ElmSpace = ''   if (($self -> {'RecordType'}) == $ENDEL);
+        }
     }
     else
     {
         return 0;
     }
 
-    if (read($self -> {'FileHandle'},$data,1))
+    if (read($self -> {'FileHandle'},$data,1)) ## data type
     {
         $data = reverse $data if ($isLittleEndian);
         $self -> {'Record'} .= $data;
@@ -1582,11 +1678,11 @@ sub readGds2RecordData
 {
     my $self = shift;
     $self -> readGds2RecordHeader() if ($self -> {'HEADER'} <= 0);
+    return $self -> {'Record'} if ($self -> {'DataType'} == $NO_DATA); # no sense going on...
     $self -> {'HEADER'} = 0;
     $self -> {'INDATA'} = 1;
     my $resolution = $self -> {'Resolution'};
     my $bytesLeft = $self -> {'Length'} - 4; ## 4 should have been just read by readGds2RecordHeader
-
     $self -> {'RecordData'} = ('');
     $self -> {'CurrentDataList'} = '';
     my $data;
@@ -1644,13 +1740,14 @@ sub readGds2RecordData
     {
         my $tmpListString = ''; 
         my $i = 0;
+        my ($negative,$exponent,$mantdata,$byteString,$byte,$mantissa,$real);
         while ($bytesLeft)
         {
             read($self -> {'FileHandle'},$data,1); ## sign bit and 7 exponent bits
-            $data = reverse $data if ($isLittleEndian);
+            #$data = reverse $data if ($isLittleEndian);
             $self -> {'Record'} .= $data;
-            my $negative = unpack 'B',$data; ## sign bit
-            my $exponent = unpack 'C',$data;
+            $negative = unpack 'B',$data; ## sign bit
+            $exponent = unpack 'C',$data;
             if ($negative)
             {
                 $exponent -= 192; ## 128 + 64
@@ -1659,20 +1756,18 @@ sub readGds2RecordData
             {
                 $exponent -= 64;
             }
-
             read($self -> {'FileHandle'},$data,7); ## mantissa bits
+            $mantdata = unpack 'b*',$data;
             $self -> {'Record'} .= $data;
-            my $mantdata = unpack 'b*',$data;
-
-            my $mantissa = 0.0;
-            for(my $i=0; $i<7; $i++)
+            $mantissa = 0.0;
+            for(my $j=0; $j<7; $j++)
             {
-                my $byteString = substr($mantdata,($i*8),8);
-                my $byte = pack 'b*',$byteString;
+                $byteString = substr($mantdata,0,8,'');
+                $byte = pack 'b*',$byteString;
                 $byte = unpack 'C',$byte;
-                $mantissa += $byte / (256.0**($i+1));
+                $mantissa += $byte / (256.0**($j+1));
             }
-            my $real = $mantissa * (16**$exponent);
+            $real = $mantissa * (16**$exponent);
             $real = (0 - $real) if ($negative);
             if ($RecordTypeStrings[$self -> {'RecordType'}] eq 'UNITS')
             {
@@ -1759,6 +1854,7 @@ sub returnRecordAsString()
 {
     my $self = shift;
     my $string = '';
+    $self -> {'UsingPrettyPrint'} = 1;
     $string .= $StrSpace if ($self -> {'RecordType'} != $BGNSTR);
     $string .= $ElmSpace if (!(($self -> {'RecordType'} == $TEXT) || ($self -> {'RecordType'} == $PATH) || 
                                ($self -> {'RecordType'} == $BOUNDARY) || ($self -> {'RecordType'} == $SREF) || 
@@ -1812,7 +1908,7 @@ sub printAngle
     my $angle = $arg{'-num'};
     $angle=0 if (! defined $angle);
     $angle=posAngle($angle);
-    $self -> printGds2Record(-type => 'ANGLE',-data => $angle)if ($angle);
+    $self -> printGds2Record(-type => 'ANGLE',-data => $angle) if ($angle);
 }
 ################################################################################
 
@@ -1851,8 +1947,8 @@ sub printBgnextn
         die "printBgnextn expects a extension number. Missing -num => #.# $!";
     }
     my $resolution = $self -> {'Resolution'};
-    if ($num >= 0) {$num = int(($num*$resolution)+$G_fudge);}
-    else           {$num = int(($num*$resolution)-$G_fudge);}
+    if ($num >= 0) {$num = int(($num*$resolution)+$G_epsilon);}
+    else           {$num = int(($num*$resolution)-$G_epsilon);}
     $self -> printGds2Record(-type => 'BGNEXTN',-data => $num);
 }
 ################################################################################
@@ -2008,8 +2104,8 @@ sub printEndextn
         die "printEndextn expects a extension number. Missing -num => #.# $!";
     }
     my $resolution = $self -> {'Resolution'};
-    if ($num >= 0) {$num = int(($num*$resolution)+$G_fudge);}
-    else           {$num = int(($num*$resolution)-$G_fudge);}
+    if ($num >= 0) {$num = int(($num*$resolution)+$G_epsilon);}
+    else           {$num = int(($num*$resolution)-$G_epsilon);}
     $self -> printGds2Record(-type => 'ENDEXTN',-data => $num);
 }
 ################################################################################
@@ -2615,8 +2711,8 @@ sub printXy
     my @xyTmp=(); ##don't pollute array passed in
     for(my $i=0;$i<=$#$xy;$i++) ## e.g. 3.4 in -> 3400 out
     {
-        if ($xy -> [$i] >= 0) {push @xyTmp,int((($xy -> [$i])*$resolution)+$G_fudge);}
-        else                  {push @xyTmp,int((($xy -> [$i])*$resolution)-$G_fudge);}
+        if ($xy -> [$i] >= 0) {push @xyTmp,int((($xy -> [$i])*$resolution)+$G_epsilon);}
+        else                  {push @xyTmp,int((($xy -> [$i])*$resolution)-$G_epsilon);}
     }
     $self -> printGds2Record(-type => 'XY',-data => \@xyTmp);
 }
@@ -3532,6 +3628,14 @@ sub posAngle($)
     $angle;
 }
 
+
+################################################################################
+sub subbyte() ## GDS2::version(); 
+{
+    my($what,$where,$howmuch) = @_;
+    unpack("x$where C$howmuch", $what);
+}
+
 ################################################################################
 sub version() ## GDS2::version(); 
 {
@@ -3561,7 +3665,6 @@ __END__
     read and a new file to create.
     #!/usr/local/bin/perl -w
     use strict;
-    use lib "/lsi/home/ic/lib/perl";
     use GDS2;
     my $fileName1 = $ARGV[0];
     my $fileName2 = $ARGV[1];
@@ -3585,7 +3688,6 @@ __END__
   Gds2 dump:
     here's a program to dump the contents of a stream file.
     #!/usr/local/bin/perl -w
-    use lib "/lsi/home/ic/lib/perl";
     use GDS2;
     $\="\n";
 
@@ -3598,7 +3700,6 @@ __END__
 
   Create a complete GDS2 stream file from scratch:
     #!/usr/local/bin/perl -w
-    use lib "/lsi/home/ic/lib/perl";
     use GDS2;
     my $gds2File = new GDS2(-fileName=>'>test.gds');
     $gds2File -> printInitLib(-name=>'testlib'); 
@@ -3633,7 +3734,7 @@ __END__
  #########################################################################################
  # 
  # Gds2 stream format is composed of variable length records. The mininum
- # length record is 4 bytes. The 1st 2 btyes of a record contain a count (in 8 bit
+ # length record is 4 bytes. The 1st 2 bytes of a record contain a count (in 8 bit
  # bytes) of the total record length.  The 3rd byte of the header is the record
  # type. The 4th byte describes the type of data contained w/in the record. The
  # 5th through last bytes are data.
@@ -3650,9 +3751,9 @@ __END__
  # 
  # DATA TYPE        VALUE  RECORD
  # ---------        -----  -----------------------
- # no data present     0   4bytes long
+ # no data present     0   4 byte header + 0
  #
- # Bit Array           1   2bytes long
+ # Bit Array           1   4 byte header + 2 bytes data
  #
  # 2byte Signed Int    2  SMMMMMMM MMMMMMMM  -> S - sign ;  M - magnitude. 
  #                        Twos complement format, with the most significant byte first.
