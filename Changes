@@ -1,0 +1,6 @@
+Revision history for Perl extension GDS2.
+
+0.01  Fri Oct  5 01:15:03 2001
+	- original version; created by h2xs 1.20 with options
+		-X -n GDS2
+
