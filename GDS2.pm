@@ -994,7 +994,7 @@ sub printText #: Profiled
     if ($x>=0) {$x = int(($x*$resolution)+$G_epsilon);}
     else       {$x = int(($x*$resolution)-$G_epsilon);}
 
-    my $y2 = $arg{'-x'};
+    my $y2 = $arg{'-y'};
     if (defined $y2)
     {
         $y = $y2;

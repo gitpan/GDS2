@@ -49,4 +49,6 @@ Makefile.PL created by h2xs 1.20 with options
 
 1.2.9 Fix to printBoundary() when array of reals is used
 
+1.3.0 Fix to printText() ... typo fix "-x" to "-y" 
+
 
