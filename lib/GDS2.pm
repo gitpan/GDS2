@@ -1,7 +1,7 @@
 package GDS2; 
 {
 require 5.006;
-$GDS2::VERSION = '2.01'; 
+$GDS2::VERSION = '2.02'; 
 ## Note: '@ ( # )' used by the what command  E.g. what GDS2.pm
 $GDS2::revision = '@(#) $RCSfile: GDS2.pm,v $ $Revision: 2.1 $ $Date: 2003-11-12 16:27:18-06 $';
 #
@@ -74,9 +74,9 @@ BEGIN
         #$ENV{'CC'} = 'gcc';                                                                            #MOD4LSI
         #$ENV{'LD'} = 'gcc';                                                                            #MOD4LSI
         #$inlineDir = "$ICHOME/lib/perl/$Config{'osname'}" if (-d "$ICHOME/lib/perl/$Config{'osname'}");#MOD4LSI
+        ##$inlineDir = "/lsi/home/schumack/lib/perl/".$Config{'osname'}; ##DEBUG
         # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 
-        #$inlineDir = "/home/schumack/lib/perl/$Config{'osname'}"; ##DEBUG
         @InlineDir = ('DIRECTORY',$inlineDir) if (-d $inlineDir);
         #use Attribute::Profiled; ## will also have to uncomment #: Profiled
     }
@@ -92,7 +92,6 @@ if (USE_C)                                                 #INLINEC
                );                                          #INLINEC
     Inline->init;                                          #INLINEC
 }                                                          #INLINEC
-
 if (HAVE_FLOCK)
 {
     use Fcntl q(:flock);  # import LOCK_* constants
@@ -4546,7 +4545,8 @@ int C_readGds2RecordData(SV* self)
     hv_store(gdsObj,"INDATA",6,newSViv(1),0);
 
     hv_store(gdsObj,"RecordData",10,newSViv(""),0);
-    hv_store(gdsObj,"CurrentDataList",15,newSViv((int)""),0);
+    sprintf(charString,"");
+    hv_store(gdsObj,"CurrentDataList",15,newSVpv(charString,0),0);
 
     LengthSV = *hv_fetch(gdsObj,"Length",6,0);
     Length = SvIVX(LengthSV);
@@ -4556,7 +4556,7 @@ int C_readGds2RecordData(SV* self)
     FdSV = *hv_fetch(gdsObj,"Fd",2,0);
     Fd = SvIVX(FdSV);
 
-    //NO_REC_DATA
+    /*NO_REC_DATA*/
     if (DataType == BIT_ARRAY)
     {
         read(Fd,Buffer,2);
@@ -4572,7 +4572,7 @@ int C_readGds2RecordData(SV* self)
         hv_store(gdsObj,"RecordData",10,RecordDataSV,0);
 
         hv_store(gdsObj,"DataIndex",9,newSViv(0),0);
-        hv_store(gdsObj,"CurrentDataList",15,newSViv((int)charString),4);
+        hv_store(gdsObj,"CurrentDataList",15,newSVpv(charString,0),0);
     }
     else if (DataType == INTEGER_2)
     {
@@ -4600,7 +4600,7 @@ int C_readGds2RecordData(SV* self)
         RecordDataSV = newRV_noinc((SV*)RecordDataAV);
         hv_store(gdsObj,"RecordData",10,RecordDataSV,0);
         hv_store(gdsObj,"DataIndex",9,newSViv(i - 1),0);
-        hv_store(gdsObj,"CurrentDataList",15,newSViv((int)charString),0);
+        hv_store(gdsObj,"CurrentDataList",15,newSVpv(charString,0),0);
     }
     else if (DataType == INTEGER_4)
     {
@@ -4637,7 +4637,7 @@ int C_readGds2RecordData(SV* self)
         RecordDataSV = newRV_noinc((SV*)RecordDataAV);
         hv_store(gdsObj,"RecordData",10,RecordDataSV,0);
         hv_store(gdsObj,"DataIndex",9,newSViv(i - 1),0);
-        hv_store(gdsObj,"CurrentDataList",15,newSViv((int)charString),0);
+        hv_store(gdsObj,"CurrentDataList",15,newSVpv(charString,0),0);
     }
     else if (DataType == REAL_4)
     {
@@ -4718,14 +4718,13 @@ int C_readGds2RecordData(SV* self)
         hv_store(gdsObj,"RecordData",10,RecordDataSV,0);
 
         hv_store(gdsObj,"DataIndex",9,newSViv(i - 1),0);
-        hv_store(gdsObj,"CurrentDataList",15,newSViv((int)charString),0);
+        hv_store(gdsObj,"CurrentDataList",15,newSVpv(charString,0),0);
     }
     else if (DataType == ACSII_STRING)
     {
         read(Fd,Buffer,bytesLeft);
         strncpy(charString,Buffer,bytesLeft);
         charString[bytesLeft] = '\0';
-
         i = 0;
         while (bytesLeft)
         {
@@ -4740,6 +4739,7 @@ int C_readGds2RecordData(SV* self)
         hv_store(gdsObj,"RecordData",10,RecordDataSV,0);
 
         hv_store(gdsObj,"DataIndex",9,newSViv(0),0);
+        hv_store(gdsObj,"CurrentDataList",15,newSVpv(charString,0),0);
     }
     Record[Length] = '\0';
     hv_store(gdsObj,"Record",6,newSVpvn(Record,Length),0);
@@ -4774,7 +4774,7 @@ int C_skipGds2RecordData(SV* self)
     hv_store(gdsObj,"DataIndex",9,newSViv(-1),0);
     return(1);
 }
-//##############################################################################
+/*##############################################################################*/
 
 void C_putElmSpace(int i)
 {
@@ -4792,7 +4792,7 @@ void C_putElmSpace(int i)
         }
     }
 }
-//##############################################################################
+/*##############################################################################*/
 
 void C_putStrSpace(int i)
 {
@@ -4810,7 +4810,7 @@ void C_putStrSpace(int i)
         }
     }
 }
-//##############################################################################
+/*##############################################################################*/
 
 __END__
 

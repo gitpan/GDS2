@@ -62,3 +62,7 @@ Makefile.PL created by h2xs 1.20 with options
 2.01  Added install option of Inline::C for reading. 
       Standardized all UNITS string printing of 1e-9, 1e-09, 1e-009 etc... to 1e-9
 
+2.02  Fix to C code: CurrentDataList was not being saved correctly.
+      Changed C comments to use "/* */" instead of "//" for those compilers
+      that may not grok '//'
+
