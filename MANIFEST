@@ -5,6 +5,7 @@ Examples/folder.xpm
 Examples/gds2dump
 Examples/gds2dumptk
 Examples/gdsdump2gds
+Examples/gdslayers
 Examples/modgds2
 Examples/textfile.xpm
 GDS2.pm

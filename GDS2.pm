@@ -1,7 +1,7 @@
 package GDS2; 
 {
 require 5.006;
-$GDS2::VERSION = '1.2.7'; 
+$GDS2::VERSION = '1.2.8'; 
 ## Note: '@ ( # )' used by the what command  E.g. what GDS2.pm
 $GDS2::revision = '@(#) $RCSfile: GDS2.pm,v $ $Revision: 1.58 $ $Date: 2002-03-31 02:22:45-06 $';
 use strict;
@@ -3006,6 +3006,38 @@ sub printXy #: Profiled
 
 =cut
 
+################################################################################
+
+=head2 returnDatatype - returns datatype # if record is DATATYPe else returns -1
+
+  usage:
+    $dataTypesFound[$gds2File -> returnDatatype] = 1;
+
+=cut
+
+sub returnDatatype #: Profiled
+{
+    my $self = shift;
+    ## 2 byte signed integer
+    if ($self -> isDatatype) { $self -> {'RecordData'}[0]; }
+    else { -1; }
+}
+################################################################################
+
+=head2 returnTexttype - returns texttype # if record is TEXTTYPE else returns -1
+
+  usage:
+    $TextTypesFound[$gds2File -> returnTexttype] = 1;
+
+=cut
+
+sub returnTexttype #: Profiled
+{
+    my $self = shift;
+    ## 2 byte signed integer
+    if ($self -> isTexttype) { $self -> {'RecordData'}[0]; }
+    else { -1; }
+}
 ################################################################################
 
 =head2 returnLayer - returns layer # if record is LAYER else returns -1

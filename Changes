@@ -45,3 +45,5 @@ Makefile.PL created by h2xs 1.20 with options
       Use file handle close method instead of standard Perl close at the
       suggestion of John Reynolds.
 
+1.2.8 Added returnDatatype and returnTexttype used in Examples/gdslayers
+
