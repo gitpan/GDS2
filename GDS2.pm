@@ -1,9 +1,9 @@
 package GDS2; 
 {
 require 5.006;
-$GDS2::VERSION = '1.2.8'; 
+$GDS2::VERSION = '1.2.9'; 
 ## Note: '@ ( # )' used by the what command  E.g. what GDS2.pm
-$GDS2::revision = '@(#) $RCSfile: GDS2.pm,v $ $Revision: 1.58 $ $Date: 2002-03-31 02:22:45-06 $';
+$GDS2::revision = '@(#) $RCSfile: GDS2.pm,v $ $Revision: 1.61 $ $Date: 2002-11-12 22:50:18-06 $';
 use strict;
 use Config;
 use IO::File;
@@ -706,11 +706,6 @@ sub printBoundary #: Profiled
     if (my $numPoints=$#$xy+1 < 6)
     {
         die "printBoundary expects an xy array of at leasts 3 coordinates $!";
-    }
-    for(my $i=0;$i<=$#$xy;$i++) ## e.g. 3.4 in -> 3400 out
-    {
-        if ($xy -> [$i] >= 0) {$xy -> [$i] = int((($xy -> [$i])*$resolution)+$G_epsilon);}
-        else                  {$xy -> [$i] = int((($xy -> [$i])*$resolution)-$G_epsilon);}
     }
     for(my $i=0;$i<=$#$xy;$i++) ## e.g. 3.4 in -> 3400 out
     {
