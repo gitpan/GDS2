@@ -21,3 +21,11 @@ Makefile.PL created by h2xs 1.20 with options
       up to 65535. Added experimental option -markEnd to close() for 
       David Kao to try. Fixed -width option to printPath() and added 
       -unitWidth option for backwards compatibility.
+
+1.2.2 Added:
+        returnSname() -  return string if record type is SNAME else ''
+        returnXyAsArray() - returns current (read) XY record as an array
+        returnRecordAsPerl() - returns current (read) record as a perl command 
+            to facilitate the creation of parameterized gds2 data with perl.
+        ReturnRecordAsPerl was contributed by Peter Baumbach. Thanks Peter!
+        

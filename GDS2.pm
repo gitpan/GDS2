@@ -1,9 +1,9 @@
 package GDS2; 
 {
 require 5.005;
-$GDS2::VERSION = '1.2.1'; 
+$GDS2::VERSION = '1.2.2'; 
 ## Note: '@ ( # )' used by the what command  E.g. what GDS2.pm
-$GDS2::revision = '@(#) $RCSfile: GDS2.pm,v $ $Revision: 1.49 $ $Date: 2001-11-26 18:31:24-06 $';
+$GDS2::revision = '@(#) $RCSfile: GDS2.pm,v $ $Revision: 1.53 $ $Date: 2002-01-14 18:27:20-06 $';
 use strict;
 use Config;
 use IO::File;
@@ -33,12 +33,16 @@ $isLittleEndian = 1 if ($Config{'byteorder'} =~ m|^1|); ## mswin32 cygwin vms
 # You can run this file through either pod2man or pod2html to produce 
 # documentation in manual or html file format 
 
-# Author: Ken Schumack (c) 1999,2000,2001.  All rights reserved.
+# Author: Ken Schumack (c) 1999,2000,2001,2002.  All rights reserved.
 # source code may be used and modified freely, but this copyright notice
 # must remain attached to the file.  You may modify this module as you 
 # wish, but if you create a modified version, please attach a note
 # listing the modifications you have made, and send a copy to me at 
 # KenSchumack@mediaone.net or Schumack@lsil.com
+# 
+# Contributor Modification: Peter Baumbach 2002-01-11
+# returnRecordAsPerl() was created to facilitate the creation of
+# parameterized gds2 data with perl.
 # 
 
 ################################################################################
@@ -1975,6 +1979,145 @@ sub returnRecordAsString() #: Profiled
 }
 ################################################################################
 
+=head2 returnXyAsArray - returns current (read) XY record as an array
+
+  usage:
+    gds2File -> returnXyAsArray(
+                    -asInteger => 0|1  ## (optional) default is true. Return integer 
+                                       ## array or if false return array of reals.
+                    -withClosure => 0|1  ## (optional) default is true. Whether to 
+                                         ##return a rectangle with 5 or 4 points.
+               );
+    
+  example:
+  while ($gds2File -> readGds2Record) 
+  {
+      my @xy = $gds2File -> returnXyAsArray if ($gds2File -> isXy);
+  }
+
+=cut
+
+sub returnXyAsArray() #: Profiled
+{
+    my($self,%arg) = @_;
+    my $asInteger = $arg{'-asInteger'};
+    if (! defined $asInteger)
+    {
+        $asInteger = 1;
+    }
+    my $withClosure = $arg{'-withClosure'};
+    if (! defined $withClosure)
+    {
+        $withClosure = 1;
+    }
+    my @xys=();
+    if ($self -> isXy)
+    {
+        my $i = 0;
+        my $stopPoint = $self -> {'DataIndex'};
+        $stopPoint -= 2 if (! $withClosure);
+        while ($i <= $stopPoint)
+        {
+            if ($asInteger)
+            {
+                push @xys,($self -> {'RecordData'}[$i]);
+            }
+            else
+            {
+                push @xys,($self -> {'RecordData'}[$i]*($self -> {'UUnits'}));
+            }
+            $i++;
+        }
+    }
+    @xys;
+}
+################################################################################
+
+
+=head2 returnRecordAsPerl - returns current (read) record as a perl command to facilitate the creation of parameterized gds2 data with perl.
+
+  usage:
+  #!/usr/local/bin/perl
+  use GDS2;
+  my $gds2File = new GDS2(-fileName=>"test.gds");
+  while ($gds2File -> readGds2Record) 
+  {
+      print $gds2File -> returnRecordAsPerl;
+  }
+
+=cut
+
+sub returnRecordAsPerl() #: Profiled
+{
+    my($self,%arg) = @_;
+    my $gds2File = $arg{'-gds2File'};
+    if (! defined $gds2File)
+    {
+        $gds2File = '$gds2File';
+    }
+    my $PGR = $arg{'-printGds2Record'};
+    if (! defined $PGR)
+    {
+        $PGR = 'printGds2Record';
+    }
+    my $string = '';
+    $self -> {'UsingPrettyPrint'} = 1;
+    $string .= $StrSpace if ($self -> {'RecordType'} != BGNSTR);
+    $string .= $ElmSpace if (!(($self -> {'RecordType'} == TEXT) || ($self -> {'RecordType'} == PATH) || 
+                               ($self -> {'RecordType'} == BOUNDARY) || ($self -> {'RecordType'} == SREF) || 
+                               ($self -> {'RecordType'} == AREF)));
+    if (
+        ($self -> {'RecordType'} == TEXT) || 
+        ($self -> {'RecordType'} == PATH) || 
+        ($self -> {'RecordType'} == BOUNDARY) ||
+        ($self -> {'RecordType'} == SREF) || 
+        ($self -> {'RecordType'} == AREF) || 
+        ($self -> {'RecordType'} == ENDEL) ||
+        ($self -> {'RecordType'} == ENDSTR) ||
+        ($self -> {'RecordType'} == ENDLIB)
+       )
+    {
+        $string .= $gds2File.'->'.$PGR.'(-type=>'."'".$RecordTypeStrings[$self -> {'RecordType'}]."'".');';
+    }
+    else
+    {
+        $string .= $gds2File.'->'.$PGR.'(-type=>'."'".$RecordTypeStrings[$self -> {'RecordType'}]."',-data=>";
+        my $i = 0;
+        my $maxi = $self -> {'DataIndex'};
+        if ($maxi >= 1) {$string .= '['}
+        while ($i <= $maxi)
+            {
+            if ($self -> {'DataType'} == BIT_ARRAY)
+            {
+                $string .= "'".$self -> {'RecordData'}[$i]."'";
+            }
+            elsif ($self -> {'DataType'} == INTEGER_2)
+            {
+                $string .= $self -> {'RecordData'}[$i];
+            }
+            elsif ($self -> {'DataType'} == INTEGER_4)
+            {
+                $string .= $self -> {'RecordData'}[$i];
+            }
+            elsif ($self -> {'DataType'} == REAL_8)
+            {
+                $string .= $self -> {'RecordData'}[$i];
+            }
+            elsif ($self -> {'DataType'} == ACSII_STRING)
+            {
+                $string .= "'".$self -> {'RecordData'}[$i]."'";
+            }
+            if ($i < $maxi) {$string .= ', '}
+            $i++;
+        }
+        if ($maxi >= 1) {$string .= ']'}
+        $string .= ');';
+    }
+    $string;
+}
+################################################################################
+
+
 =head1 Low Level Specific Write Methods
 
 =cut
@@ -2607,7 +2750,7 @@ sub printSrfname #: Profiled
 }
 ################################################################################
 
-=head2 printSname - prints a STRANS record
+=head2 printStrans - prints a STRANS record
 
   usage:
     gds2File -> printStrans( -reflect );
@@ -2858,6 +3001,18 @@ sub returnString #: Profiled
 {
     my $self = shift;
     if ($self -> isString) { $self -> {'RecordData'}[0]; }
+    else { ''; }
+}
+################################################################################
+
+=head2 returnSname - return string if record type is SNAME else ''
+
+=cut
+
+sub returnSname #: Profiled
+{
+    my $self = shift;
+    if ($self -> isSname) { $self -> {'RecordData'}[0]; }
     else { ''; }
 }
 ################################################################################
