@@ -7,7 +7,7 @@
 # (It may become useful if the test is moved to ./t subdirectory.)
 
 BEGIN { $| = 1; print "1..2\n"; }
-END {print "not ok 1\n" unless $loaded;}
+END {print "not ok 2\n" unless $loaded;}
 use GDS2;
 $loaded = 1;
 print "ok 1\n";
@@ -23,11 +23,11 @@ sub ok
 {
     my ($n, $result, @info) = @_;
     if ($result) {
-    	print "ok $n\n";
+        print "ok $n\n";
     }
     else {
-	    print "not ok $n\n";
-    	print "# @info\n" if @info;
+        print "not ok $n\n";
+        print "# @info\n" if @info;
     }
 }
 

@@ -1,9 +1,9 @@
 package GDS2; 
 {
 require 5.006;
-$GDS2::VERSION = '1.2.2'; 
+$GDS2::VERSION = '1.2.4'; 
 ## Note: '@ ( # )' used by the what command  E.g. what GDS2.pm
-$GDS2::revision = '@(#) $RCSfile: GDS2.pm,v $ $Revision: 1.54 $ $Date: 2002-02-19 21:33:29-06 $';
+$GDS2::revision = '@(#) $RCSfile: GDS2.pm,v $ $Revision: 1.56 $ $Date: 2002-03-27 22:21:42-06 $';
 use strict;
 use Config;
 use IO::File;
@@ -1483,15 +1483,15 @@ sub printGds2Record #: Profiled
             $dataString=~s|^\s+||; ## clean-up
             $dataString=~s|\s+$||;
             $dataString=~s|\s+| |g if ($dataString !~ m|'|); ## don't compress spaces in strings...
-            $dataString=~s|'$||; #'for strings
-            $dataString=~s|^'||; #'for strings
+            $dataString=~s|'$||; #'# for strings
+            $dataString=~s|^'||; #'# for strings
             if (($recordDataType == BIT_ARRAY)||($recordDataType == ACSII_STRING))
             {
                 $data = $dataString;
             }
             else
             {
-                $dataString=~s|\s*[\s,;:/\\]+\s*| |g; ## incase commas etc... (non-std) were added by hand
+                $dataString=~s|\s*[\s,;:/\\]+\s*| |g; ## in case commas etc... (non-std) were added by hand
                 @data = split(' ',$dataString);
                 $numDataElements = @data;
                 if ($recordDataType == INTEGER_4)
@@ -1780,7 +1780,6 @@ sub readGds2RecordData #: Profiled
     {
         $self -> {'DataIndex'}=0;
         read($self -> {'FileHandle'},$data,$bytesLeft);
-        $data = reverse $data if ($isLittleEndian);
         my $bitsLeft = $bytesLeft * 8;
         $self -> {'Record'} .= $data;
         $self -> {'RecordData'}[0] = unpack "B$bitsLeft",$data;
@@ -1953,21 +1952,17 @@ sub returnRecordAsString() #: Profiled
     my $i = 0;
     while ($i <= $self -> {'DataIndex'})
     {
-        if ($self -> {'DataType'} == BIT_ARRAY)
-        {
-            $string .= '  '.$self -> {'RecordData'}[$i];
-        }
-        elsif ($self -> {'DataType'} == INTEGER_2)
+        if (
+            ($self -> {'DataType'} == BIT_ARRAY) ||
+            ($self -> {'DataType'} == INTEGER_2) ||
+            ($self -> {'DataType'} == REAL_8)
+        )
         {
             $string .= '  '.$self -> {'RecordData'}[$i];
         }
         elsif ($self -> {'DataType'} == INTEGER_4)
         {
             $string .= '  '.$self -> {'RecordData'}[$i]*($self -> {'UUnits'});
-        }
-        elsif ($self -> {'DataType'} == REAL_8)
-        {
-            $string .= '  '.$self -> {'RecordData'}[$i];
         }
         elsif ($self -> {'DataType'} == ACSII_STRING)
         {

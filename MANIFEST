@@ -1,10 +1,14 @@
 Changes
-README
 GDS2.pm
+INSTALL
 MANIFEST
 Makefile.PL
+README
 Examples/gds2dump
 Examples/gdsdump2gds
+Examples/modgds2
+TEST.dump
 t/01load.t
 t/02create.t
+t/03dump.t
 

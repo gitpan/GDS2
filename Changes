@@ -31,3 +31,6 @@ Makefile.PL created by h2xs 1.20 with options
         
 1.2.3 Turned on use warnings line which requires 5.6 perl
 
+1.2.4 Added modgds2 to Examples/ and fixed a BIT_ARRAY problem for 
+      little-endian machines.
+
