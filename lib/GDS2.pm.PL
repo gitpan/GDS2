@@ -1,13 +1,13 @@
-#!/lsi/soft/CFR/bin/perl -w
+#!/usr/bin/perl -w
 use strict;
 use warnings;
 $|++;
 print << "EOP";
-========================================================
-By default this GDS2 module will try to compile and use
-C code so as to speed up gds2 reading. This code is new
-and relatively untested.
-========================================================
+================================================
+This GDS2 module can try to compile and use
+C code so as to speed up gds2 reading slightly.
+This code is relatively untested.
+================================================
 
 EOP
 

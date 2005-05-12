@@ -1,15 +1,15 @@
 package GDS2; 
 {
 require 5.006;
-$GDS2::VERSION = '2.04'; 
+$GDS2::VERSION = '2.05'; 
 ## Note: '@ ( # )' used by the what command  E.g. what GDS2.pm
-$GDS2::revision = '@(#) $RCSfile: GDS2.pm,v $ $Revision: 2.9 $ $Date: 2003-12-10 21:12:53-06 $';
+$GDS2::revision = '@(#) $RCSfile: GDS2.pm,v $ $Revision: 2.10 $ $Date: 2005-05-11 23:12:53-06 $';
 #
 
 =pod
 =head1 COPYRIGHT
 
-Author: Ken Schumack (c) 1999-2004. All rights reserved.
+Author: Ken Schumack (c) 1999-2005. All rights reserved.
 This module is free software. It may be used, redistributed
 and/or modified under the terms of the Perl Artistic License.
  (see http://www.perl.com/pub/a/language/misc/Artistic.html)
@@ -49,8 +49,8 @@ BEGIN
     use constant USE_C        => FALSE; ## Trying for speed improvement...
     use constant NONSTDINLINE => FALSE; ## Use for non root Inline::C results install (i.e. you don't have admin rights)
     
-    use constant HAVE_FLOCK => TRUE; ## some systems still may not have this...manually change
-    use constant TIMER_ON => FALSE; ## DEBUG ONLY
+    use constant HAVE_FLOCK => TRUE;  ## some systems still may not have this...manually change
+    use constant TIMER_ON   => FALSE; ## DEBUG ONLY
     use Config;
     use IO::File;
     @InlineDir = ();
@@ -469,6 +469,7 @@ schumack@cpan.org
   my $gds2File  = new GDS2(-fileName => "filename.gds2"); ## to read 
   my $gds2File2 = new GDS2(-fileName => ">filename.gds2"); ## to write
 
+
 =cut
 
 sub new #: Profiled
@@ -600,13 +601,17 @@ sub close #: Profiled
 
 ################################################################################
 
-=head2 printInitLib() - Does all the things needed to start a library
+=head2 printInitLib() - Does all the things needed to start a library, writes HEADER,BGNLIB,LIBNAME,and UNITS records
 
+The default is to create a library with a default unit of 1 micron that has a resolution of 1000. To get this set uUnit to 0.001 (1/1000) and the dbUnit to 1/1000th of a micron (1e-9).
    usage:
-     $gds2File -> printInitLib(-name => "testlib",   ##writes HEADER,BGNLIB,LIBNAME,and UNITS records
-                               -isoDate => 0|1       ## (optional) use ISO 4 digit date 2001 vs 101
+     $gds2File -> printInitLib(-name    => "testlib",  ## required
+                               -isoDate => 0|1         ## (optional) use ISO 4 digit date 2001 vs 101
+                               -uUnit   => real number ## (optional) default is 0.001
+                               -dbUnit  => real number ## (optional) default is 1e-9 
                               );
-     ## defaults to current date for library date and 1e-3 and 1e-9 for units
+     
+     ## defaults to current date for library date
 
    note:
      remember to close library with printEndlib()
@@ -621,6 +626,7 @@ sub printInitLib #: Profiled
     {
         die "printInitLib expects a library name. Missing -name => 'name' $!";
     }
+    #################################################
     my $isoDate = $arg{'-isoDate'};
     if (! defined $isoDate)
     {
@@ -630,13 +636,34 @@ sub printInitLib #: Profiled
     {
         $isoDate = TRUE;
     }
+
+    #################################################
+    my $uUnit = $arg{'-uUnit'};
+    if (! defined $uUnit)
+    {
+        $uUnit = 0.001;
+    }
+    else
+    {
+        $self -> {'Resolution'} = (1 / $uUnit); ## default is 1000 - already set in new()
+    }
+    $self -> {'UUnits'} = $uUnit;
+    #################################################
+    my $dbUnit = $arg{'-dbUnit'};
+    if (! defined $dbUnit)
+    {
+        $dbUnit = 1e-9;
+    }
+    $self -> {'DBUnits'} = $dbUnit;
+    #################################################
+    
     my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime(time);
     $mon++;
     $year += 1900 if ($isoDate); ## Cadence likes year left "as is". GDS format supports year number up to 65535 -- 101 vs 2001
     $self -> printGds2Record(-type => 'HEADER',-data => 3); ## GDS2 HEADER
     $self -> printGds2Record(-type => 'BGNLIB',-data => [$year,$mon,$mday,$hour,$min,$sec,$year,$mon,$mday,$hour,$min,$sec]);
     $self -> printGds2Record(-type => 'LIBNAME',-data => $libName);
-    $self -> printGds2Record(-type => 'UNITS',-data => [0.001,1e-9]);
+    $self -> printGds2Record(-type => 'UNITS',-data => [$uUnit,$dbUnit]);
 }
 ################################################################################
 
@@ -3292,14 +3319,36 @@ sub printUinteger #: Profiled
 
 =head2 printUnits - Prints units record.
 
-  Defaults to 1e-3 and 1e-9
+  options:
+    -uUnit   => real number ## (optional) default is 0.001
+    -dbUnit  => real number ## (optional) default is 1e-9 
 
 =cut
 
 sub printUnits #: Profiled
 {
-    my $self = shift;
-    $self -> printGds2Record(-type => 'UNITS',-data => [0.001,1e-9]);
+    my($self,%arg) = @_;
+    
+    my $uUnit = $arg{'-uUnit'};
+    if (! defined $uUnit)
+    {
+        $uUnit = 0.001;
+    }
+    else
+    {
+        $self -> {'Resolution'} = (1 / $uUnit); ## default is 1000 - already set in new()
+    }
+    $self -> {'UUnits'} = $uUnit;
+    #################################################
+    my $dbUnit = $arg{'-dbUnit'};
+    if (! defined $dbUnit)
+    {
+        $dbUnit = 1e-9;
+    }
+    $self -> {'DBUnits'} = $dbUnit;
+    #################################################
+
+    $self -> printGds2Record(-type => 'UNITS',-data => [$uUnit,$dbUnit]);
 }
 ################################################################################
 

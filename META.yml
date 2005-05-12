@@ -1,17 +1,13 @@
---- #YAML:1.0
+---
 name: GDS2
-version: 2.04
-author:
-  - ~
+version: 2.05
+author: ~
 abstract: GDS2 stream module
 license: artistic
 requires:
   perl: 5.6.0
-recommends: {}
-build_requires: {}
-conflicts: {}
 provides:
   GDS2:
     file: lib/GDS2.pm
-    version: 2.04
-generated_by: Module::Build version 0.22
+    version: 2.05
+generated_by: Module::Build version 0.261

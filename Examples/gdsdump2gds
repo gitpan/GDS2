@@ -1,5 +1,6 @@
 #!/usr/bin/perl -w
-## #!/usr/bin/perl -d:ptkdb
+#swap line 1 and 3 to use the perl debugger
+#!/usr/bin/perl -d:ptkdb
 use strict;
 use warnings;
 #use diagnostics;
@@ -89,6 +90,7 @@ if ($compactFormat)
         my $dumpLine=$_;
         $dumpLine=~s|^\s+||; ## make following comparisions easier...
         next if (m/^#/); ## see # as here-to-line-end comment
+        next if (m/^$/);
         my $lines = '';
         if (m/^b\s*\{\s*(\d+)[^x]+xy\s*\(([^)]+)\)\s*\}/)
         { #b{6 xy(1.1 4.2 1.1 1.15 3.9 1.15 3.9 4.2 1.1 4.2)}
@@ -98,13 +100,13 @@ if ($compactFormat)
             $xy =~ s/\s+/  /g;
             $xy =~ s/^\s+//;
             $xy =~ s/\s+$//;
-            if ($xy =~ m/^([\d\.\-]+)  ([\d\.\-]+)(.*)/)
+            if ($xy =~ m/^([\d\.\-]+)\s+([\d\.\-]+)(.*)/)
             {
                 my $x = $1;
                 my $y = $2;
-                if ($xy !~ m/ $x  $y$/)
+                if ($xy !~ m/\s$x\s+$y$/)
                 {
-                    $xy .= "  $x  $y"; ## closure
+                    $xy .= " $x $y"; ## closure
                 }
             }
             if (m/\sdt(\d+)\s/)
