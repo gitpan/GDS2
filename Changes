@@ -76,3 +76,6 @@ Makefile.PL created by h2xs 1.20 with options
 2.05  Added -uUnit and -dbUnit options to new() method per request from
       Wolfgang Hoppe
 
+2.06  Improved readGds2RecordHeader() and related methods per request from
+      Vitor Antunes
+

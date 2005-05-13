@@ -21,5 +21,6 @@ SIGNATURE
 t/01load.t
 t/02create.t
 t/03dump.t
+t/04dump.t
 TEST.dump
 SIGNATURE    Added here by Module::Build

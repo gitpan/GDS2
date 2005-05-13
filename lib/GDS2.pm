@@ -1,9 +1,9 @@
 package GDS2; 
 {
 require 5.006;
-$GDS2::VERSION = '2.05'; 
+$GDS2::VERSION = '2.06'; 
 ## Note: '@ ( # )' used by the what command  E.g. what GDS2.pm
-$GDS2::revision = '@(#) $RCSfile: GDS2.pm,v $ $Revision: 2.10 $ $Date: 2005-05-11 23:12:53-06 $';
+$GDS2::revision = '@(#) $RCSfile: GDS2.pm,v $ $Revision: 2.10 $ $Date: 2005-05-13 01:12:55-06 $';
 #
 
 =pod
@@ -44,8 +44,9 @@ my @InlineDir;
 my $G_timer;
 BEGIN
 {
-    use constant TRUE  => 1;
-    use constant FALSE => 0;
+    use constant TRUE    => 1;
+    use constant FALSE   => 0;
+    use constant UNKNOWN => -1;
     use constant USE_C        => FALSE; ## Trying for speed improvement...
     use constant NONSTDINLINE => FALSE; ## Use for non root Inline::C results install (i.e. you don't have admin rights)
     
@@ -401,13 +402,13 @@ my %RecordTypeData=(
 'NODE'         => NO_REC_DATA,
 'TEXTTYPE'     => INTEGER_2,
 'PRESENTATION' => BIT_ARRAY,
-'SPACING'      => -1, #INTEGER_4, discontinued
+'SPACING'      => UNKNOWN, #INTEGER_4, discontinued
 'STRING'       => ACSII_STRING,
 'STRANS'       => BIT_ARRAY,
 'MAG'          => REAL_8,
 'ANGLE'        => REAL_8,
-'UINTEGER'     => -1, #INTEGER_4, no longer used
-'USTRING'      => -1, #ACSII_STRING, no longer used
+'UINTEGER'     => UNKNOWN, #INTEGER_4, no longer used
+'USTRING'      => UNKNOWN, #ACSII_STRING, no longer used
 'REFLIBS'      => ACSII_STRING,
 'FONTS'        => ACSII_STRING,
 'PATHTYPE'     => INTEGER_2,
@@ -429,14 +430,14 @@ my %RecordTypeData=(
 'ENDEXTN'      => INTEGER_4,
 'TAPENUM'      => INTEGER_2,
 'TAPECODE'     => INTEGER_2,
-'STRCLASS'     => -1,
+'STRCLASS'     => UNKNOWN,
 'RESERVED'     => INTEGER_4,
 'FORMAT'       => INTEGER_2,
 'MASK'         => ACSII_STRING,
 'ENDMASKS'     => NO_REC_DATA,
-'LIBDIRSIZE'   => -1, #INTEGER_2
+'LIBDIRSIZE'   => UNKNOWN, #INTEGER_2
 'SRFNAME'      => ACSII_STRING,
-'LIBSECUR'     => -1, #INTEGER_2,
+'LIBSECUR'     => UNKNOWN, #INTEGER_2,
 );
 
 # This is the default class for the GDS2 object to use when all else fails.
@@ -522,14 +523,14 @@ sub new #: Profiled
     $self -> {'FileName'}   = $fileName; ## the gds2 filename
     $self -> {'BytesDone'}  = 0;         ## total file size so far
     $self -> {'EOLIB'}      = FALSE;     ## end of library flag
-    $self -> {'HEADER'}     = -1;        ## in header flag
-    $self -> {'INDATA'}     = FALSE;     ## in data flag
+    $self -> {'INHEADER'}   = UNKNOWN;   ## in header? flag TRUE | FALSE | UNKNOWN
+    $self -> {'INDATA'}     = FALSE;     ## in data? flag TRUE | FALSE 
     $self -> {'Length'}     = 0;         ## length of data
-    $self -> {'DataType'}   = -1;        ## one of 7 gds datatypes
+    $self -> {'DataType'}   = UNKNOWN;   ## one of 7 gds datatypes
     $self -> {'UUnits'}     = 0.0;       ## for gds2 file
     $self -> {'DBUnits'}    = 0.0;       ## for gds2 file
     $self -> {'Record'}     = '';        ## the whole record as found in gds2 file
-    $self -> {'RecordType'} = -1;
+    $self -> {'RecordType'} = UNKNOWN;
     $self -> {'DataIndex'}  = 0;
     $self -> {'RecordData'} = ();
     $self -> {'CurrentDataList'} = '';
@@ -1954,26 +1955,48 @@ sub readGds2Record #: Profiled
         $self -> readGds2RecordHeader();
         $self -> readGds2RecordData();
     }
+    $self -> {'INHEADER'} = FALSE;
+    $self -> {'INDATA'}   = TRUE; ## actually just done w/ it
     $self -> {'Record'};
 }
 ################################################################################
 
 =head2 readGds2RecordHeader - only reads gds2 record header section (2 bytes)
 
+  slightly faster if you just want a certain thing...
+  usage:
+  while ($gds2File -> readGds2RecordHeader) 
+  {
+      if ($gds2File -> returnRecordTypeString eq 'LAYER')
+      {
+          $gds2File -> readGds2RecordData;
+          $layersFound[$gds2File -> returnLayer] = 1;
+      }
+  }
+
 =cut
 
 sub readGds2RecordHeader #: Profiled
 {
     my $self = shift;
-    $self -> skipGds2RecordData() if (($self -> {'HEADER'} == FALSE) && (! $self -> {'INDATA'})) ; # in HEADER not in data
+    if (USE_C)
+    {
+        return "" if ($self -> {'EOLIB'});
+        $self -> C_readGds2RecordHeader();
+        $self -> {'INHEADER'} = TRUE; ## will actually be just just done with it by the time we can check this ...
+        $self -> {'INDATA'}   = FALSE;
+        return 1;
+    }
+
+    $self -> skipGds2RecordData() if ((! $self -> {'INDATA'}) && ($self -> {'INHEADER'} != UNKNOWN)) ; # need to read record data before header unless 1st time
     $self -> {'Record'} = '';
-    $self -> {'RecordType'} = -1;
-    $self -> {'HEADER'} = TRUE;
-    $self -> {'INDATA'} = FALSE;
+    $self -> {'RecordType'} = UNKNOWN;
+    $self -> {'INHEADER'} = TRUE; ## will actually be just just done with it by the time we can check this ...
+    $self -> {'INDATA'}   = FALSE;
     return '' if ($self -> {'EOLIB'}); ## no sense reading null padding..
+
     my $buffer = '';
     return 0 if (! read($self -> {'FileHandle'},$buffer,4));
-
     my $data;
     #if (read($self -> {'FileHandle'},$data,2)) ### length
     $data = substr($buffer,0,2);
@@ -2047,10 +2070,28 @@ sub readGds2RecordHeader #: Profiled
 sub readGds2RecordData #: Profiled
 {
     my $self = shift;
-    $self -> readGds2RecordHeader() if ($self -> {'HEADER'} == FALSE);
+    if (USE_C)
+    {
+        return "" if ($self -> {'EOLIB'});
+        $self -> C_readGds2RecordData();
+        if ($self -> {'DataType'} == BIT_ARRAY) ## make the same as Perl version
+        {
+            my $bitString = $self -> {'RecordData'}[0];
+            $self -> {'RecordData'}[0] = sprintf("%016b",hex($bitString));
+        }
+        elsif ($self -> {'DataType'} == ACSII_STRING) ## make the same as Perl version
+        {
+            $self -> {'RecordData'}[0] =~ s|\0||g; ## take off ending nulls
+        }
+        $self -> {'INHEADER'} = FALSE; # not in HEADER - need to read HEADER next time around...
+        $self -> {'INDATA'}   = TRUE;  # rather in DATA - actually will be at the end of data by the time we test this...
+        return 1;
+    }
+
+    $self -> readGds2RecordHeader() if ($self -> {'INHEADER'} != TRUE); # program did not read HEADER - needs to...
     return $self -> {'Record'} if ($self -> {'DataType'} == NO_REC_DATA); # no sense going on...
-    $self -> {'HEADER'} = FALSE; # not in HEADER
-    $self -> {'INDATA'} = TRUE;  # rather in DATA
+    $self -> {'INHEADER'} = FALSE; # not in HEADER - need to read HEADER next time around...
+    $self -> {'INDATA'}   = TRUE;  # rather in DATA - actually will be at the end of data by the time we test this...
     $self -> {'RecordData'} = '';
     $self -> {'RecordData'} = ();
     $self -> {'CurrentDataList'} = '';
@@ -3432,7 +3473,7 @@ sub returnDatatype #: Profiled
     my $self = shift;
     ## 2 byte signed integer
     if ($self -> isDatatype) { $self -> {'RecordData'}[0]; }
-    else { -1; }
+    else { UNKNOWN; }
 }
 ################################################################################
 
@@ -3447,7 +3488,7 @@ sub returnPathtype #: Profiled
     my $self = shift;
     ## 2 byte signed integer
     if ($self -> isPathtype) { $self -> {'RecordData'}[0]; }
-    else { -1; }
+    else { UNKNOWN; }
 }
 ################################################################################
 
@@ -3463,7 +3504,7 @@ sub returnTexttype #: Profiled
     my $self = shift;
     ## 2 byte signed integer
     if ($self -> isTexttype) { $self -> {'RecordData'}[0]; }
-    else { -1; }
+    else { UNKNOWN; }
 }
 ################################################################################
 
@@ -3478,7 +3519,7 @@ sub returnWidth #: Profiled
     my $self = shift;
     ## 4 byte signed integer
     if ($self -> isWidth) { $self -> {'RecordData'}[0]; }
-    else { -1; }
+    else { UNKNOWN; }
 }
 ################################################################################
 
@@ -3495,7 +3536,7 @@ sub returnLayer #: Profiled
     my $self = shift;
     ## 2 byte signed integer
     if ($self -> isLayer) { $self -> {'RecordData'}[0]; }
-    else { -1; }
+    else { UNKNOWN; }
 }
 ################################################################################
 
@@ -4334,17 +4375,17 @@ sub readRecordTypeAndData #: Profiled
 sub skipGds2RecordData #: Profiled
 {
     my $self = shift;
-    $self -> readGds2RecordHeader() if ($self -> {'HEADER'} <= 0); ## safety
+    $self -> readGds2RecordHeader() if ($self -> {'INHEADER'} != TRUE); ## safety - need to read HEADER if INHEADER == UNKNOWN or FALSE
     if (TIMER_ON)
     {
         $G_timer -> reset();
         $G_timer -> start('skipGds2RecordData');
     }
-    $self -> {'HEADER'} = FALSE;
-    $self -> {'INDATA'} = TRUE;
+    $self -> {'INHEADER'} = FALSE;
+    $self -> {'INDATA'}   = TRUE;  # in DATA - actually will be at the end of data by the time we test this...
     ## 4 should have been just read by readGds2RecordHeader
     seek($self -> {'FileHandle'},$self -> {'Length'} - 4,SEEK_CUR); ## seek seems to run a little faster than read
-    $self -> {'DataIndex'} = -1;
+    $self -> {'DataIndex'} = UNKNOWN;
     if (TIMER_ON)
     {
         $G_timer -> stop;
@@ -4668,7 +4709,7 @@ int C_readGds2RecordHeader(SV* self)
     /*********************************************/
     gdsObj = (HV*)SvRV(self);
 
-    HeaderSV = *hv_fetch(gdsObj,"HEADER",6,0);
+    HeaderSV = *hv_fetch(gdsObj,"INHEADER",8,0);
     Header   = SvIVX(HeaderSV);
 
     INDATASV = *hv_fetch(gdsObj,"INDATA",6,0);
@@ -4678,7 +4719,7 @@ int C_readGds2RecordHeader(SV* self)
     {
         C_skipGds2RecordData(self);
     }
-    hv_store(gdsObj,"HEADER",6,newSViv(1),0);
+    hv_store(gdsObj,"INHEADER",8,newSViv(1),0);
     hv_store(gdsObj,"INDATA",6,newSViv(0),0);
     hv_store(gdsObj,"RecordType",10,newSViv(-1),0);
 
@@ -4811,7 +4852,7 @@ int C_readGds2RecordData(SV* self)
     EOLIBSV = *hv_fetch(gdsObj,"EOLIB",5,0);
     EOLIB = SvIVX(EOLIBSV);
 
-    HeaderSV = *hv_fetch(gdsObj,"HEADER",6,0);
+    HeaderSV = *hv_fetch(gdsObj,"INHEADER",8,0);
     Header   = SvIVX(HeaderSV);
 
     if (Header <= 0)
@@ -4821,7 +4862,7 @@ int C_readGds2RecordData(SV* self)
     DataTypeSV = *hv_fetch(gdsObj,"DataType",8,0);
     DataType = SvIVX(DataTypeSV);
 
-    hv_store(gdsObj,"HEADER",6,newSViv(0),0);
+    hv_store(gdsObj,"INHEADER",8,newSViv(0),0);
     hv_store(gdsObj,"INDATA",6,newSViv(1),0);
 
     hv_store(gdsObj,"RecordData",10,newSViv(""),0);
@@ -5038,7 +5079,7 @@ int C_skipGds2RecordData(SV* self)
     FdSV = *hv_fetch(gdsObj,"Fd",2,0);
     Fd = SvIVX(FdSV);
 
-    HeaderSV = *hv_fetch(gdsObj,"HEADER",6,0);
+    HeaderSV = *hv_fetch(gdsObj,"INHEADER",8,0);
     Header = SvIVX(HeaderSV);
 
     LengthSV = *hv_fetch(gdsObj,"Length",6,0);
@@ -5048,7 +5089,7 @@ int C_skipGds2RecordData(SV* self)
     {
         C_readGds2RecordHeader(self);
     }
-    hv_store(gdsObj,"HEADER",6,newSViv(0),0);
+    hv_store(gdsObj,"INHEADER",8,newSViv(0),0);
     hv_store(gdsObj,"INDATA",6,newSViv(1),0);
     read(Fd,Buffer,4);
     hv_store(gdsObj,"DataIndex",9,newSViv(-1),0);

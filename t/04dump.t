@@ -44,8 +44,9 @@ close DUMPIN;
 
 my $gds2File = new GDS2(-fileName => 'testdump.gds');
 open(DUMPOUT,">dump.out") or die "Unable to create dump.out $!";
-while ($gds2File -> readGds2Record) 
+while ($gds2File -> readGds2RecordHeader)
 {
+    $gds2File -> readGds2RecordData();
     print DUMPOUT $gds2File -> returnRecordAsString."\n";
 }
 close DUMPOUT;
@@ -74,6 +75,6 @@ if ($good)
     unlink"testdump.gds";
     unlink "dump.out";
 }
-ok(2,$good,'problem with ascii dump.');
+ok(2,$good,'problem with ascii dump 2.');
 0;
 
