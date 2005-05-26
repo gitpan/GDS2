@@ -5,13 +5,13 @@ use strict;
 use warnings;
 #use diagnostics;
 require 5.006;
-our $VERSION = do { my @r=(q$Revision: 1.9 $=~/\d+/g); sprintf "%d."."%02d"x$#r,@r }; 
+our $VERSION = do { my @r=(q$Revision: 2.0 $=~/\d+/g); sprintf "%d."."%02d"x$#r,@r }; 
 use Getopt::Long qw(GetOptions);
 use GDS2;
 $|++;
 $\="\n";
 ## No need to edit next line ... modified automatically by RCS
-#'@(#) $RCSfile: gdsdump2gds.pl,v $ $Revision: 1.9 $ $Date: 2003-12-12 14:55:44-06 $';
+#'@(#) $RCSfile: gdsdump2gds.pl,v $ $Revision: 2.0 $ $Date: 2005-05-26 03:12:44-06 $';
 
 BEGIN
 {
@@ -338,9 +338,16 @@ if ($compactFormat)
             $line=~s|^\s+||;
             if ($line =~ m|^([a-z]+) (.*)|i)
             {
-                $type=$1;
-                $dataString=$2 if (defined $2);
-                $gds2FileOut -> printGds2Record(-type=>$type,-asciiData=>$dataString)
+                if ($line =~ m/^\s*units\s+(\S+)\s+(\S+)\s*$/i)
+                {
+                    $gds2FileOut -> printUnits(-uUnit=>$1, -dbUnit=>$2);
+                }
+                else
+                {
+                    $type=$1;
+                    $dataString=$2 if (defined $2);
+                    $gds2FileOut -> printGds2Record(-type=>$type,-asciiData=>$dataString)
+                }
             }
             else
             {
@@ -362,9 +369,16 @@ else
         $dataString='';
         if ($line =~ m|^([a-z]+) (.*)|i)
         {
-            $type=$1;
-            $dataString=$2 if (defined $2);
-            $gds2FileOut -> printGds2Record(-type=>$type,-asciiData=>$dataString)
+            if ($line =~ m/^\s*units\s+(\S+)\s+(\S+)\s*$/i)
+            {
+                $gds2FileOut -> printUnits(-uUnit=>$1, -dbUnit=>$2);
+            }
+            else
+            {
+                $type=$1;
+                $dataString=$2 if (defined $2);
+                $gds2FileOut -> printGds2Record(-type=>$type,-asciiData=>$dataString)
+            }
         }
         else
         {

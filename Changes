@@ -73,9 +73,14 @@ Makefile.PL created by h2xs 1.20 with options
 2.04  Added dataSize(). Added method returnUnitsAsArray() method written
       by Toby Schaffer. Thanks Toby!
 
-2.05  Added -uUnit and -dbUnit options to new() method per request from
-      Wolfgang Hoppe
+2.05  Added -uUnit and -dbUnit options to printInitLib() and printUnits()
+      methods per request from Wolfgang Hoppe
 
 2.06  Improved readGds2RecordHeader() and related methods per request from
       Vitor Antunes
+
+2.07  POD help for returnXyAsArray() incomplete (did not mention -xyInt option
+      which should be the most common mode for modifying GDS2) 
+      Examples/gdsdump2gds updated to make use of printUnits() and handle 
+      units/dbunits other than 0.001/1e-9
 

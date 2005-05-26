@@ -1,9 +1,9 @@
 package GDS2; 
 {
 require 5.006;
-$GDS2::VERSION = '2.06'; 
+$GDS2::VERSION = '2.07'; 
 ## Note: '@ ( # )' used by the what command  E.g. what GDS2.pm
-$GDS2::revision = '@(#) $RCSfile: GDS2.pm,v $ $Revision: 2.10 $ $Date: 2005-05-13 01:12:55-06 $';
+$GDS2::revision = '@(#) $RCSfile: GDS2.pm,v $ $Revision: 2.1l $ $Date: 2005-05-26 00:19:55-06 $';
 #
 
 =pod
@@ -527,8 +527,8 @@ sub new #: Profiled
     $self -> {'INDATA'}     = FALSE;     ## in data? flag TRUE | FALSE 
     $self -> {'Length'}     = 0;         ## length of data
     $self -> {'DataType'}   = UNKNOWN;   ## one of 7 gds datatypes
-    $self -> {'UUnits'}     = 0.0;       ## for gds2 file
-    $self -> {'DBUnits'}    = 0.0;       ## for gds2 file
+    $self -> {'UUnits'}     = -1.0;      ## for gds2 file
+    $self -> {'DBUnits'}    = -1.0;      ## for gds2 file
     $self -> {'Record'}     = '';        ## the whole record as found in gds2 file
     $self -> {'RecordType'} = UNKNOWN;
     $self -> {'DataIndex'}  = 0;
@@ -1592,14 +1592,13 @@ sub printGds2Record #: Profiled
     {
         $type = uc $type;
     }
+    my @data = $arg{'-data'};
+    my $dataString = $arg{'-asciiData'};
+    die "printGds2Record can not handle both -data and -asciiData options $!" if ((defined $dataString)&&((defined $data[0])&&($data[0] ne '')));
 
     my $fh = $self -> {'FileHandle'};
     my $saveEnd=$\;
     $\='';
-
-    my @data = $arg{'-data'};
-    my $dataString = $arg{'-asciiData'};
-    die "printGds2Record can not handle both -data and -asciiData options $!" if ((defined $dataString)&&((defined $data[0])&&($data[0] ne '')));
 
     my $data = '';
     my $recordLength; ## 1st 2 bytes for length 3rd for recordType 4th for dataType
@@ -1690,6 +1689,7 @@ sub printGds2Record #: Profiled
     {
         my $numDataElements = 0;
         my $resolution = $self -> {'Resolution'};
+        my $uUnits = $self -> {'UUnits'};
 
         my $scale = $arg{'-scale'};
         if (! defined $scale)
@@ -2131,18 +2131,15 @@ sub readGds2RecordData #: Profiled
         my $i = 0;
         my $buffer = '';
         read($self -> {'FileHandle'},$buffer,$bytesLeft); ## try fewer reads
-        #while ($bytesLeft)
         for(my $start=0; $start < $bytesLeft; $start += 4)
         {
             $data = substr($buffer,$start,4);
-            #read($self -> {'FileHandle'},$data,4);
             $data = reverse $data if ($isLittleEndian);
             $self -> {'Record'} .= $data;
             $self -> {'RecordData'}[$i] = unpack 'i',$data;
             $tmpListString .= ',';
             $tmpListString .= $self -> {'RecordData'}[$i];
             $i++;
-            #$bytesLeft -= 4;
         }
         $self -> {'DataIndex'} = $i - 1;
         $self -> {'CurrentDataList'} = $tmpListString;
@@ -2160,7 +2157,6 @@ sub readGds2RecordData #: Profiled
         while ($bytesLeft)
         {
             read($self -> {'FileHandle'},$data,1); ## sign bit and 7 exponent bits
-            #$data = reverse $data if ($isLittleEndian);
             $self -> {'Record'} .= $data;
             $negative = unpack 'B',$data; ## sign bit
             $exponent = unpack 'C',$data;
@@ -2187,11 +2183,11 @@ sub readGds2RecordData #: Profiled
             $real = (0 - $real) if ($negative);
             if ($RecordTypeStrings[$self -> {'RecordType'}] eq 'UNITS')
             {
-                if ($self -> {'UUnits'} == 0)
+                if ($self -> {'UUnits'} == -1.0)
                 {
                     $self -> {'UUnits'} = $real;
                 }
-                elsif ($self -> {'DBUnits'} == 0)
+                elsif ($self -> {'DBUnits'} == -1.0)
                 {
                     $self -> {'DBUnits'} = $real;
                 }
@@ -2219,7 +2215,6 @@ sub readGds2RecordData #: Profiled
         $self -> {'RecordData'}[0] =~ s|\0||g; ## take off ending nulls
         $self -> {'CurrentDataList'} = ($self -> {'RecordData'}[0]);
     }
-    #$self -> {'Record'};
     return 1;
 }
 ################################################################################
@@ -2431,8 +2426,8 @@ sub returnRecordAsString() #: Profiled
 
   usage:
     $gds2File -> returnXyAsArray(
-                    -asInteger => 0|1  ## (optional) default is true. Return integer 
-                                       ## array or if false return array of reals.
+                    -asInteger => 0|1    ## (optional) default is true. Return integer 
+                                         ## array or if false return array of reals.
                     -withClosure => 0|1  ## (optional) default is true. Whether to 
                                          ##return a rectangle with 5 or 4 points.
                );
@@ -2471,13 +2466,12 @@ sub returnXyAsArray() #: Profiled
         {
             $stopPoint -= 2;
         }
-        my $num=5;
+        my $num=0;
         while ($i <= $stopPoint)
         {
             if ($asInteger)
             {
                 $num = $self -> {'RecordData'}[$i];
-                push @xys,$num;
             }
             else
             {
@@ -3422,8 +3416,12 @@ sub printWidth #: Profiled
 =head2 printXy - prints an XY array 
 
   usage:
-    $gds2File -> printXy( -xy => \@array );
+    $gds2File -> printXy( -xyInt => \@arrayGds2Ints );
+    -or-
+    $gds2File -> printXy( -xy => \@arrayReals );
 
+    -xyInt most useful if reading and modifying... -xy if creating from scratch
+    
 =cut
 
 sub printXy #: Profiled

@@ -1,6 +1,6 @@
 ---
 name: GDS2
-version: 2.06
+version: 2.07
 author: ~
 abstract: GDS2 stream module
 license: artistic
@@ -9,5 +9,5 @@ requires:
 provides:
   GDS2:
     file: lib/GDS2.pm
-    version: 2.06
+    version: 2.07
 generated_by: Module::Build version 0.261
