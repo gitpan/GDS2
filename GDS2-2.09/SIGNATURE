@@ -1,0 +1,50 @@
+This file contains message digests of all files listed in MANIFEST,
+signed via the Module::Signature module, version 0.54.
+
+To verify the content in this distribution, first make sure you have
+Module::Signature installed, then type:
+
+    % cpansign -v
+
+It will check each file's integrity, as well as the signature's
+validity.  If "==> Signature verified OK! <==" is not displayed,
+the distribution may already have been compromised, and you should
+not run its Makefile.PL or Build.PL.
+
+-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA1
+
+SHA1 204b5c4feca70e818f0f510aa3f925d1c38f5219 Build.PL
+SHA1 1d7b242d6e7d55163b0681134891923d2cb4933d Changes
+SHA1 333263c693790878e4f248b58a22fb84a9b4e4f4 Examples/README
+SHA1 7f318ce60bd335873919456942643500272a7d14 Examples/act_folder.xpm
+SHA1 54969d562d131cc1693d51c605dd8069176e7667 Examples/file.xpm
+SHA1 8b05b22011c27a97bb96c3b76ef9455b630d56b8 Examples/folder.xpm
+SHA1 ad38a7b5e347b0e0b32cd32337c5a4d85b833b5c Examples/gds2dump
+SHA1 cd96adda966e665a883767ced4d903e1d3c81e9f Examples/gdsdump2gds
+SHA1 894a4a32fee8d007fa11d21b397422777e502735 Examples/gdslayers
+SHA1 c85bbf922af70099913c7cbf705a8d8876888c69 Examples/gdspath4topath0
+SHA1 c52b31ee58f08d247dc8ae2a9e49637c71aab8df Examples/modgds2
+SHA1 837331fb7c6b15d605dc9b1d30eb0dda31b74ff6 Examples/testgds2
+SHA1 9363d7e84e78dfd6039497698734b4d27ad1c85e Examples/testgdt
+SHA1 e5d00c285e9b0a36fdfa381e368f1a7cd845f4ba Examples/textfile.xpm
+SHA1 29174faa33375dce7daa3e7df14f54c7dfa90002 INSTALL
+SHA1 737550310ee5936a94df08544727cd2524cad17b MANIFEST
+SHA1 c026969467e50b8c9117dd782d2ccb4556c7d5aa META.yml
+SHA1 cf1750e1e2343e0284a33b089661500b1e4fe2d5 Makefile.PL
+SHA1 5c520a6926bab924c22c2d3cfb33b4f4ca676931 README
+SHA1 58426bb60eefa0aee21731d1561bcf96193dcc1f TEST.dump
+SHA1 57157452325872a6f10e880ea82527e88fe8dea6 lib/GDS2.pm
+SHA1 d72ebfadc70857e1d8496f349af343254be5d4a3 lib/GDS2.pm.PL
+SHA1 054dbd146baf0d4df0bcd74a41a2c691f89325e0 t/01load.t
+SHA1 c4d32dae63ffc34c566d7d485c7d5d4d6c2bcc34 t/02create.t
+SHA1 78d9529093d12130b9c844b96c5914438c0d9236 t/03dump.t
+SHA1 07140ba7ee7f6b19958b9f13791515f8357e2e55 t/04dump.t
+SHA1 62c46c14ffe571d3c20867e6891e41606a778078 t/pod.t
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.2.2 (GNU/Linux)
+
+iD8DBQFFF0WV8yYS6i8J7sERAvf7AJ9RVZjfiVzoqllyUI2elvOGsNTUUQCeMThm
+8CriRpRyw+gQw5iXOKkfjOg=
+=zChf
+-----END PGP SIGNATURE-----

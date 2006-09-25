@@ -9,6 +9,8 @@ Examples/gdslayers
 Examples/gdspath4topath0
 Examples/modgds2
 Examples/README
+Examples/testgds2
+Examples/testgdt
 Examples/textfile.xpm
 INSTALL
 lib/GDS2.pm
@@ -22,5 +24,5 @@ t/01load.t
 t/02create.t
 t/03dump.t
 t/04dump.t
+t/pod.t
 TEST.dump
-SIGNATURE    Added here by Module::Build
