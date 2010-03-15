@@ -1,16 +1,16 @@
-perl Build.PL  ## Creates Build executable
+erl Build.PL  ## Creates Build executable
   -or-
 perl Build.PL destdir=/someNonDefaultInstallPath  ## to instruct Build where to install
 
 ------------------------------------------------------------------------------------------
 
-./Build        ## can leave off ./ if you have . in your command PATH
+./Build
 ./Build test
 
 ------------------------------------------------------------------------------------------
 
 su (or whatever you do to have admin rights)
-./Build test (do again if you are using Inline::C code - puts compiled code in perl tree)
+./Build test
 ./Build install
 
 

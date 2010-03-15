@@ -1,7 +1,7 @@
 package GDS2; 
 {
 require 5.006;
-$GDS2::VERSION = '2.09'; 
+$GDS2::VERSION = '3.00'; 
 ## Note: '@ ( # )' used by the what command  E.g. what GDS2.pm
 $GDS2::revision = '@(#) $Id: GDS2.pm,v $ $Revision: 2.12 $ $Date: 2006-02-20 00:12:55-06 $';
 #
@@ -10,10 +10,10 @@ $GDS2::revision = '@(#) $Id: GDS2.pm,v $ $Revision: 2.12 $ $Date: 2006-02-20 00:
 
 =head1 COPYRIGHT
 
-Author: Ken Schumack (c) 1999-2006. All rights reserved.
+Author: Ken Schumack (c) 1999-2010. All rights reserved.
 This module is free software. It may be used, redistributed
 and/or modified under the terms of the Perl Artistic License.
- (see http://www.perl.com/pub/a/language/misc/Artistic.html)
+(see http://www.perl.com/pub/a/language/misc/Artistic.html)
 I do ask that you please let me know if you find bugs or have
 idea for improvements. You can reach me at Schumack@cpan.org
  Have fun, Ken
@@ -41,50 +41,19 @@ use strict;
 use warnings;
 #use diagnostics;
 
-my @InlineDir;
 my $G_timer;
 BEGIN
 {
     use constant TRUE    => 1;
     use constant FALSE   => 0;
     use constant UNKNOWN => -1;
-    use constant USE_C        => FALSE; ## Trying for speed improvement...
-    use constant NONSTDINLINE => FALSE; ## Use for non root Inline::C results install (i.e. you don't have admin rights)
     
     use constant HAVE_FLOCK => TRUE;  ## some systems still may not have this...manually change
     use constant TIMER_ON   => FALSE; ## DEBUG ONLY
     use Config;
     use IO::File;
-    @InlineDir = ();
-    foreach my $dir (@INC)
-    {
-        if (
-              ((-w $dir) && (-e "$dir/GDS2.pm")) || ## for Build
-              ((-d "$dir/lib/auto/GDS2") && (! -f "Build.PL")) ## for use (have GDS2 and not in Build directory
-        )
-        {
-            @InlineDir = ('DIRECTORY',$dir);
-            last;
-        }
-    }
-    if (NONSTDINLINE) ## can be used for DEBUG, default will be your standard Perl directory
-    {
-        my $inlineDir = '';
-        @InlineDir = ('DIRECTORY',$inlineDir) if (-d $inlineDir);
-        #use Attribute::Profiled; ## will also have to uncomment #: Profiled
-    }
 }
 
-#if (USE_C)                                                 #INLINEC
-#{                                                          #INLINEC
-#    use Inline (C    => 'DATA',                            #INLINEC
-#                NAME => 'GDS2',                            #INLINEC
-#                INC  => '-I/sys',                          #INLINEC
-#                CLEAN_AFTER_BUILD => FALSE,                #INLINEC
-#                @InlineDir, ## from BEGIN section above... #INLINEC
-#               );                                          #INLINEC
-#    Inline->init;                                          #INLINEC
-#}                                                          #INLINEC
 if (HAVE_FLOCK)
 {
     use Fcntl q(:flock);  # import LOCK_* constants
@@ -562,8 +531,8 @@ sub fileNum #: Profiled
   usage:
   $gds2File -> close;
    -or-
-  $gds2File -> close(-markEnd=>1); ## experimental  -- some systems have trouble closing files
-  $gds2File -> close(-pad=>2048);  ## experimental  -- pad end with \0's till file size is a 
+  $gds2File -> close(-markEnd=>1); ## -- some systems have trouble closing files
+  $gds2File -> close(-pad=>2048);  ## -- pad end with \0's till file size is a 
                                    ## multiple of number. Note: old reel to reel tapes on Calma
                                    ## systems used 2048 byte blocks
 
@@ -583,7 +552,9 @@ sub close #: Profiled
     if ((defined $pad)&&($pad > 0))
     {
         my $fh = $self -> {'FileHandle'};
-        my $fileSize = $self -> tellSize;
+        $fh -> flush;
+        seek($fh,0,SEEK_END);
+        my $fileSize = tell($fh);
         my $padSize = $pad - ($fileSize % $pad);
         $padSize=0 if ($padSize == $pad);
         for (my $i=0; $i < $padSize; $i++)
@@ -1606,7 +1577,7 @@ sub printGds2Record #: Profiled
     my $recordLength; ## 1st 2 bytes for length 3rd for recordType 4th for dataType
     if ($type eq 'RECORD') ## special case...
     {
-        if ($isLittleEndian && (! USE_C))
+        if ($isLittleEndian)
         {
             my $length = substr($data[0],0,2);
             $recordLength = unpack 'v',$length;
@@ -1937,26 +1908,8 @@ sub readGds2Record #: Profiled
 {
     my $self = shift;
     return "" if ($self -> {'EOLIB'});
-    #print "DEBUG size==".$self->tellSize()." eolib=".$self -> {'EOLIB'}."\n";
-    if (USE_C)
-    {
-        $self -> C_readGds2RecordHeader();
-        $self -> C_readGds2RecordData();
-        if ($self -> {'DataType'} == BIT_ARRAY) ## make the same as Perl version
-        {
-            my $bitString = $self -> {'RecordData'}[0];
-            $self -> {'RecordData'}[0] = sprintf("%016b",hex($bitString));
-        }
-        elsif ($self -> {'DataType'} == ACSII_STRING) ## make the same as Perl version
-        {
-            $self -> {'RecordData'}[0] =~ s|\0||g; ## take off ending nulls
-        }
-    }
-    else
-    {
-        $self -> readGds2RecordHeader();
-        $self -> readGds2RecordData();
-    }
+    $self -> readGds2RecordHeader();
+    $self -> readGds2RecordData();
     $self -> {'INHEADER'} = FALSE;
     $self -> {'INDATA'}   = TRUE; ## actually just done w/ it
     $self -> {'Record'};
@@ -1981,14 +1934,6 @@ sub readGds2Record #: Profiled
 sub readGds2RecordHeader #: Profiled
 {
     my $self = shift;
-    if (USE_C)
-    {
-        return "" if ($self -> {'EOLIB'});
-        $self -> C_readGds2RecordHeader();
-        $self -> {'INHEADER'} = TRUE; ## will actually be just just done with it by the time we can check this ...
-        $self -> {'INDATA'}   = FALSE;
-        return 1;
-    }
 
     $self -> skipGds2RecordData() if ((! $self -> {'INDATA'}) && ($self -> {'INHEADER'} != UNKNOWN)) ; # need to read record data before header unless 1st time
     $self -> {'Record'} = '';
@@ -2072,23 +2017,6 @@ sub readGds2RecordHeader #: Profiled
 sub readGds2RecordData #: Profiled
 {
     my $self = shift;
-    if (USE_C)
-    {
-        return "" if ($self -> {'EOLIB'});
-        $self -> C_readGds2RecordData();
-        if ($self -> {'DataType'} == BIT_ARRAY) ## make the same as Perl version
-        {
-            my $bitString = $self -> {'RecordData'}[0];
-            $self -> {'RecordData'}[0] = sprintf("%016b",hex($bitString));
-        }
-        elsif ($self -> {'DataType'} == ACSII_STRING) ## make the same as Perl version
-        {
-            $self -> {'RecordData'}[0] =~ s|\0||g; ## take off ending nulls
-        }
-        $self -> {'INHEADER'} = FALSE; # not in HEADER - need to read HEADER next time around...
-        $self -> {'INDATA'}   = TRUE;  # rather in DATA - actually will be at the end of data by the time we test this...
-        return 1;
-    }
 
     $self -> readGds2RecordHeader() if ($self -> {'INHEADER'} != TRUE); # program did not read HEADER - needs to...
     return $self -> {'Record'} if ($self -> {'DataType'} == NO_REC_DATA); # no sense going on...
@@ -2307,7 +2235,7 @@ sub returnRecordAsString() #: Profiled
         if ($self -> {'DataType'} == BIT_ARRAY)
         {
             my $bitString = $self -> {'RecordData'}[$i];
-            if ((! USE_C) && $isLittleEndian)
+            if ($isLittleEndian)
             {
                 $bitString =~ m|(........)(........)|;
                 $bitString = "$2$1";
@@ -4555,21 +4483,6 @@ sub returnUnitsAsArray
 }
 ################################################################################
 
-=head2 tellSize - return current byte position (NOT zero based)
-
-  usage:
-    my $position = $gds2File -> tellSize;
-
-
-=cut
-
-sub tellSize() #: Profiled
-{
-    my $self = shift;
-    $self -> {'BytesDone'};
-}
-################################################################################
-
 #######
 sub subbyte() ## GDS2::version();
 {
@@ -4627,559 +4540,7 @@ sub putStrSpace
 1;
 }
 
-################################################################################
-__DATA__
-#__C__
-
-/* GDS2 STREAM RECORD DATATYPES */
-#define NO_REC_DATA  0
-#define BIT_ARRAY    1
-#define INTEGER_2    2
-#define INTEGER_4    3
-#define REAL_4       4
-#define REAL_8       5
-#define ACSII_STRING 6
-
-#define HEADER         0
-#define BGNLIB         1
-#define LIBNAME        2
-#define UNITS          3
-#define ENDLIB         4
-#define BGNSTR         5
-#define STRNAME        6
-#define ENDSTR         7
-#define BOUNDARY       8
-#define PATH           9
-#define SREF          10
-#define AREF          11
-#define TEXT          12
-#define LAYER         13
-#define DATATYPE      14
-#define WIDTH         15
-#define XY            16
-#define ENDEL         17
-#define SNAME         18
-#define COLROW        19
-#define TEXTNODE      20
-#define NODE          21
-#define TEXTTYPE      22
-#define PRESENTATION  23
-#define SPACING       24
-#define STRING        25
-#define STRANS        26
-#define MAG           27
-#define ANGLE         28
-#define UINTEGER      29
-#define USTRING       30
-#define REFLIBS       31
-#define FONTS         32
-#define PATHTYPE      33
-#define GENERATIONS   34
-#define ATTRTABLE     35
-#define STYPTABLE     36
-#define STRTYPE       37
-#define EFLAGS        38
-#define ELKEY         39
-#define LINKTYPE      40
-#define LINKKEYS      41
-#define NODETYPE      42
-#define PROPATTR      43
-#define PROPVALUE     44
-#define BOX           45
-#define BOXTYPE       46
-#define PLEX          47
-#define BGNEXTN       48
-#define ENDEXTN       49
-#define TAPENUM       50
-#define TAPECODE      51
-#define STRCLASS      52
-#define RESERVED      53
-#define FORMAT        54
-#define MASK          55
-#define ENDMASKS      56
-#define LIBDIRSIZE    57
-#define SRFNAME       58
-#define LIBSECUR      59
-                                    
-#define BLOCK 20480
-
-void C_putElmSpace(int);
-void C_putStrSpace(int);
-
-/* GLOBAL */
-char
-    Buffer[BLOCK], 
-    Record[BLOCK],       /* 10x 2048 for large boundaries ... */
-    charString[BLOCK];
-
-int UsingPrettyPrint = 0;
-
-HV* gdsObj;
-
-AV* StringDataAV;
-AV* RecordDataAV;
-
-SV** RecordDataSVp;
-
-SV* BytesDoneSV;
-SV* DataTypeSV;
-SV* DBUnitsSV;
-SV* EOLIBSV;
-SV* FdSV;
-SV* HeaderSV;
-SV* INDATASV;
-SV* LengthSV;
-SV* RecordDataSV;
-SV* RecordSV;
-SV* RecordTypeSV;
-SV* ResolutionSV;
-SV* StringDataSV;
-SV* UsingPrettyPrintSV;
-SV* UUnitsSV;
-    
-int C_readGds2RecordHeader(SV* self)
-{
-    int  /* parts of GDS2 object */
-        BytesDone,               /* where we are in the current stream file */
-        DataType = 0,            /* current data type */
-        Fd,                      /* current file discriptor */
-        Length = 0,              /* current record length */
-        byte,
-        Header = 1,
-        INDATA = 0,
-        EOLIB = 0,
-        RecordType = 0;          /* current record type */
-
-    /*********************************************/
-    gdsObj = (HV*)SvRV(self);
-
-    HeaderSV = *hv_fetch(gdsObj,"INHEADER",8,0);
-    Header   = SvIVX(HeaderSV);
-
-    INDATASV = *hv_fetch(gdsObj,"INDATA",6,0);
-    INDATA   = SvIVX(INDATASV);
-
-    if ((Header >= 0) && (! INDATA))
-    {
-        C_skipGds2RecordData(self);
-    }
-    hv_store(gdsObj,"INHEADER",8,newSViv(1),0);
-    hv_store(gdsObj,"INDATA",6,newSViv(0),0);
-    hv_store(gdsObj,"RecordType",10,newSViv(-1),0);
-
-    EOLIBSV = *hv_fetch(gdsObj,"EOLIB",5,0);
-    EOLIB = SvIVX(EOLIBSV);
-    if (EOLIB == 1)
-    {
-        hv_store(gdsObj,"EOLIB",5,newSViv(1),0);
-        return(0);
-    }
-
-    FdSV = *hv_fetch(gdsObj,"Fd",2,0);
-    Fd = SvIVX(FdSV);
-
-    BytesDoneSV = *hv_fetch(gdsObj,"BytesDone",9,0);
-    BytesDone = SvIVX(BytesDoneSV);
-
-    /** length **/
-    if (read(Fd,Buffer,2))
-    {
-        Record[0] = Buffer[0];
-        Record[1] = Buffer[1];
-        byte = (int)(*(Buffer + 0) & 0xff);
-        Length = byte;
-        byte = (int)(*(Buffer + 1) & 0xff);
-        Length = Length * 256 + byte;
-        BytesDone += Length;
-        hv_store(gdsObj,"BytesDone",9,newSViv(BytesDone),0);
-    }
-    else
-    {
-        return(0);
-    }
-
-    /** RecordType **/
-    if (read(Fd,Buffer,1))
-    {
-        Record[2] = Buffer[0];
-        RecordType = (int)(*(Buffer + 0) & 0xff);
-        if (RecordType == ENDLIB)
-        {
-            hv_store(gdsObj,"EOLIB",5,newSViv(1),0);
-        }
-        UsingPrettyPrintSV = *hv_fetch(gdsObj,"UsingPrettyPrint",16,0);
-        UsingPrettyPrint = SvIVX(UsingPrettyPrintSV);
-        if (UsingPrettyPrint)
-        {
-            if (RecordType == ENDSTR) C_putStrSpace(0);
-            if (RecordType == BGNSTR) C_putStrSpace(2);
-            if ((RecordType == TEXT) || (RecordType == PATH) || (RecordType == BOUNDARY) || (RecordType == SREF) || (RecordType == AREF)) C_putElmSpace(2);
-            if (RecordType == ENDEL)
-            {
-                C_putElmSpace(0);
-                hv_store(gdsObj,"InTxt",5,newSViv(0),0);
-                hv_store(gdsObj,"InBoundary",10,newSViv(0),0);
-            }
-            if (RecordType == TEXT)
-            {
-                hv_store(gdsObj,"InTxt",5,newSViv(1),0);
-            }
-            if (RecordType == BOUNDARY)
-            {
-                hv_store(gdsObj,"InBoundary",10,newSViv(1),0);
-            }
-            if ((RecordType == LIBNAME) || (RecordType == STRNAME))
-            {
-                hv_store(gdsObj,"DateFld",7,newSViv(0),0);
-            }
-            if ((RecordType == BGNLIB) || (RecordType == BGNSTR))
-            {
-                hv_store(gdsObj,"DateFld",7,newSViv(1),0);
-            }
-        }
-    }
-    else
-    {
-        return(0);
-    }
-    
-    /** DataType **/
-    if (read(Fd,Buffer,1))
-    {
-        Record[3] = Buffer[0];
-        DataType = (int)(*(Buffer + 0) & 0xff);
-    }
-    else
-    {
-        return 0;
-    }
-
-    /** printf("C:Length=%-5d RecordType=%-2d DataType=%-2d\n",Length,RecordType,DataType); **/
-    hv_store(gdsObj,"Length",6,newSViv(Length),0);
-    hv_store(gdsObj,"RecordType",10,newSViv(RecordType),0);
-    hv_store(gdsObj,"DataType",8,newSViv(DataType),0);
-
-    return(1);
-} 
-
-int C_readGds2RecordData(SV* self)
-{
-    int  /* parts of GDS2 object */
-        bytesLeft,
-        byte1,
-        byte2,
-        byte,
-        bitsLeft,
-        dataInt,
-        DataType,                /* current data type */
-        Fd,                      /* current file discriptor */
-        Length = 0,              /* current record length */
-        expon,
-        EOLIB = 0,
-        Header = 1,
-        i,j,
-        negative = 0,
-        INDATA = 0,
-        Resolution = 1000,
-        RecordData = 0,
-        RecordType;              /* current record type */
-    
-    double
-        UUnits = 0.0,
-        DBUnits = 0.0,
-        mant,
-        dbl;
-
-    /*********************************************/
-    gdsObj = (HV*)SvRV(self);
-
-    EOLIBSV = *hv_fetch(gdsObj,"EOLIB",5,0);
-    EOLIB = SvIVX(EOLIBSV);
-
-    HeaderSV = *hv_fetch(gdsObj,"INHEADER",8,0);
-    Header   = SvIVX(HeaderSV);
-
-    if (Header <= 0)
-    {
-        C_readGds2RecordHeader(self);
-    }
-    DataTypeSV = *hv_fetch(gdsObj,"DataType",8,0);
-    DataType = SvIVX(DataTypeSV);
-
-    hv_store(gdsObj,"INHEADER",8,newSViv(0),0);
-    hv_store(gdsObj,"INDATA",6,newSViv(1),0);
-
-    hv_store(gdsObj,"RecordData",10,newSViv(""),0);
-    sprintf(charString,"");
-    hv_store(gdsObj,"CurrentDataList",15,newSVpv(charString,0),0);
-
-    LengthSV = *hv_fetch(gdsObj,"Length",6,0);
-    Length = SvIVX(LengthSV);
-
-    bytesLeft = Length - 4;
-
-    FdSV = *hv_fetch(gdsObj,"Fd",2,0);
-    Fd = SvIVX(FdSV);
-
-    /*NO_REC_DATA*/
-    if (DataType == BIT_ARRAY)
-    {
-        read(Fd,Buffer,2);
-        Record[4] = Buffer[0];
-        Record[5] = Buffer[1];
-        byte1 = (short)(*(Buffer + 0) & 0xff);
-        byte2 = (short)(*(Buffer + 1) & 0xff);
-        sprintf(charString,"%02x%02x",byte1,byte2);
-
-        RecordDataAV = newAV();
-        av_store(RecordDataAV, 0, newSVpv(charString,4));
-        RecordDataSV = newRV_noinc((SV*)RecordDataAV);
-        hv_store(gdsObj,"RecordData",10,RecordDataSV,0);
-
-        hv_store(gdsObj,"DataIndex",9,newSViv(0),0);
-        hv_store(gdsObj,"CurrentDataList",15,newSVpv(charString,0),0);
-    }
-    else if (DataType == INTEGER_2)
-    {
-        RecordDataAV = newAV();
-        i = 0;
-        sprintf(charString,"");
-        while (bytesLeft)
-        {
-            read(Fd,Buffer,2);
-            Record[(i*2) + 4] = Buffer[0];
-            Record[(i*2) + 5] = Buffer[1];
-            bytesLeft -= 2;
-            byte = (int)(*(Buffer + 0) & 0xff);
-            if(byte > 127) negative = 1;
-            else           negative = 0;
-
-            dataInt = byte;
-            byte = (int)(*(Buffer + 1) & 0xff);
-            dataInt = dataInt * 256 + byte;
-            if (negative) dataInt = dataInt - 65536;
-            sprintf(charString,"%s,%d",charString,dataInt);
-            av_store(RecordDataAV, i, newSViv(dataInt));
-            i++;
-        }
-        RecordDataSV = newRV_noinc((SV*)RecordDataAV);
-        hv_store(gdsObj,"RecordData",10,RecordDataSV,0);
-        hv_store(gdsObj,"DataIndex",9,newSViv(i - 1),0);
-        hv_store(gdsObj,"CurrentDataList",15,newSVpv(charString,0),0);
-    }
-    else if (DataType == INTEGER_4)
-    {
-        RecordDataAV = newAV();
-        i = 0;
-        sprintf(charString,"");
-        while (bytesLeft)
-        {
-            read(Fd,Buffer,4);
-            Record[(i*4)+4] = Buffer[0];
-            Record[(i*4)+5] = Buffer[1];
-            Record[(i*4)+6] = Buffer[2];
-            Record[(i*4)+7] = Buffer[3];
-            bytesLeft -= 4;
-            byte = (int)(*(Buffer + 0) & 0xff);
-            if(byte > 127)
-            {
-                negative = 1;
-                byte = byte - 255;
-            }
-            else negative = 0;
-            dataInt = byte;
-            for (j=1; j <= 3; j++)
-            {
-                byte = (int)(*(Buffer + j) & 0xff);
-                if (negative) byte = byte - 255;
-                dataInt = dataInt * 256 + byte;
-            }
-            if (negative) dataInt = dataInt - 1;
-            sprintf(charString,"%s,%d",charString,dataInt);
-            av_store(RecordDataAV, i, newSViv(dataInt));
-            i++;
-        }
-        RecordDataSV = newRV_noinc((SV*)RecordDataAV);
-        hv_store(gdsObj,"RecordData",10,RecordDataSV,0);
-        hv_store(gdsObj,"DataIndex",9,newSViv(i - 1),0);
-        hv_store(gdsObj,"CurrentDataList",15,newSVpv(charString,0),0);
-    }
-    else if (DataType == REAL_4)
-    {
-        printf("ERROR: 4-byte reals are not supported\n");
-        exit(3);
-    }
-    else if (DataType == REAL_8)
-    {
-        sprintf(charString,"");
-        RecordDataAV = newAV();
-        i = 0;
-        while (bytesLeft)
-        {
-            read(Fd,Buffer,8);
-            Record[(i*8)+4] = Buffer[0];
-            Record[(i*8)+5] = Buffer[1];
-            Record[(i*8)+6] = Buffer[2];
-            Record[(i*8)+7] = Buffer[3];
-            Record[(i*8)+8] = Buffer[4];
-            Record[(i*8)+9] = Buffer[5];
-            Record[(i*8)+10] = Buffer[6];
-            Record[(i*8)+11] = Buffer[7];
-            byte = (int)(*(Buffer + 0) & 0xff);
-            if (byte > 127) 
-            {
-                negative = 1;
-                expon = byte - 192;
-            }
-            else 
-            {
-                negative = 0;
-                expon = byte - 64;
-            }
-            
-            mant = 0.0;
-            for (j = 1; j <= 7; j++) 
-            {
-                byte = (int)(*(Buffer + j) & 0xff);
-                mant = mant + ((double)byte) / pow((double)256, (double)j);
-            }
-            dbl = mant * pow((double)16, (double)expon);
-            if (negative) dbl = -dbl;
-
-            UUnitsSV = *hv_fetch(gdsObj,"UUnits",6,0);
-            UUnits = SvNVX(UUnitsSV);
-
-            RecordTypeSV = *hv_fetch(gdsObj,"RecordType",10,0);
-            RecordType = SvIVX(RecordTypeSV);
-            
-            if (RecordType == UNITS)
-            {
-                DBUnitsSV = *hv_fetch(gdsObj,"DBUnits",7,0);
-                DBUnits = SvNVX(DBUnitsSV);
-
-                if (UUnits == 0.0)
-                {
-                    hv_store(gdsObj,"UUnits",6,newSVnv(dbl),0);
-                }
-                else if (DBUnits == 0.0)
-                {
-                    hv_store(gdsObj,"DBUnits",7,newSVnv(dbl),0);
-                }
-            }
-            else
-            {
-                ResolutionSV = *hv_fetch(gdsObj,"Resolution",10,0);
-                Resolution = SvIVX(ResolutionSV);
-
-                if (UUnits != 0.0) dbl = ((int)((dbl+(UUnits/Resolution))/UUnits)) * UUnits;
-            }
-
-            av_store(RecordDataAV, i, newSVnv(dbl));
-            sprintf(charString,"%s,%g",charString,dbl);
-            i++;
-            bytesLeft -= 8;
-        }
-        RecordDataSV = newRV_noinc((SV*)RecordDataAV);
-        hv_store(gdsObj,"RecordData",10,RecordDataSV,0);
-
-        hv_store(gdsObj,"DataIndex",9,newSViv(i - 1),0);
-        hv_store(gdsObj,"CurrentDataList",15,newSVpv(charString,0),0);
-    }
-    else if (DataType == ACSII_STRING)
-    {
-        read(Fd,Buffer,bytesLeft);
-        strncpy(charString,Buffer,bytesLeft);
-        charString[bytesLeft] = '\0';
-        i = 0;
-        while (bytesLeft)
-        {
-            Record[i+4] = Buffer[i];
-            bytesLeft--;
-            i++;
-        }
-
-        RecordDataAV = newAV();
-        av_store(RecordDataAV, 0, newSVpv(charString,0));
-        RecordDataSV = newRV_noinc((SV*)RecordDataAV);
-        hv_store(gdsObj,"RecordData",10,RecordDataSV,0);
-
-        hv_store(gdsObj,"DataIndex",9,newSViv(0),0);
-        hv_store(gdsObj,"CurrentDataList",15,newSVpv(charString,0),0);
-    }
-    Record[Length] = '\0';
-    hv_store(gdsObj,"Record",6,newSVpvn(Record,Length),0);
-    if (EOLIB == 1) return(0);
-    return(1);
-} 
-
-int C_skipGds2RecordData(SV* self)
-{
-    int
-        Fd,
-        Length,
-        Header;
-
-    gdsObj = (HV*)SvRV(self);
-    FdSV = *hv_fetch(gdsObj,"Fd",2,0);
-    Fd = SvIVX(FdSV);
-
-    HeaderSV = *hv_fetch(gdsObj,"INHEADER",8,0);
-    Header = SvIVX(HeaderSV);
-
-    LengthSV = *hv_fetch(gdsObj,"Length",6,0);
-    Length = SvIVX(LengthSV);
-
-    if (Header <= 0)
-    {
-        C_readGds2RecordHeader(self);
-    }
-    hv_store(gdsObj,"INHEADER",8,newSViv(0),0);
-    hv_store(gdsObj,"INDATA",6,newSViv(1),0);
-    read(Fd,Buffer,4);
-    hv_store(gdsObj,"DataIndex",9,newSViv(-1),0);
-    return(1);
-}
-/*##############################################################################*/
-
-void C_putElmSpace(int i)
-{
-    SV* ElmSpaceSV;
-    ElmSpaceSV = get_sv("GDS2::ElmSpace",FALSE);
-    if (SvOK(ElmSpaceSV))
-    {
-        if (i)
-        {
-            sv_setpv((SV*)ElmSpaceSV, "  \0");
-        }
-        else
-        {
-            sv_setpv((SV*)ElmSpaceSV, "\0");
-        }
-    }
-}
-/*##############################################################################*/
-
-void C_putStrSpace(int i)
-{
-    SV* StrSpaceSV;
-    StrSpaceSV = get_sv("GDS2::StrSpace",FALSE);
-    if (SvOK(StrSpaceSV))
-    {
-        if (i)
-        {
-            sv_setpv((SV*)StrSpaceSV, "  \0");
-        }
-        else
-        {
-            sv_setpv((SV*)StrSpaceSV, "\0");
-        }
-    }
-}
-/*##############################################################################*/
-
 __END__
-
-=pod
 
 =head1 Examples
   

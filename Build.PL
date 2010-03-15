@@ -4,10 +4,7 @@ my $build = new Module::Build
     module_name => 'GDS2',
     license => 'artistic',
     requires => {
-        perl => '5.6.0',
-    },
-    PL_files => {
-        'lib/GDS2.pm.PL' => 'lib/GDS2.pm.original',
+        perl => '5.8.0',
     },
     sign => 1,
 );

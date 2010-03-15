@@ -14,7 +14,6 @@ Examples/testgdt
 Examples/textfile.xpm
 INSTALL
 lib/GDS2.pm
-lib/GDS2.pm.PL
 Makefile.PL
 MANIFEST
 META.yml
@@ -24,5 +23,7 @@ t/01load.t
 t/02create.t
 t/03dump.t
 t/04dump.t
+t/05close2048.t
 t/pod.t
 TEST.dump
+SIGNATURE    Added here by Module::Build

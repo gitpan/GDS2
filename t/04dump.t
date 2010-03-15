@@ -65,7 +65,7 @@ while (<DUMPIN>)
     if ($line1 ne $line2)
     {
         $good = 0;
-        print STDERR "\nline $lineCnt> old:$line1 != new:$line2\n";
+        print STDERR "\nline $lineCnt> old:$line1 != new:$line2 -> Check your Perl - maybe you only need to adjust your LD_LIBRARY_PATH, but your Perl can not do math very accurately.\n";
     }
 }
 close DUMPIN;

@@ -1,5 +1,5 @@
 This file contains message digests of all files listed in MANIFEST,
-signed via the Module::Signature module, version 0.44.
+signed via the Module::Signature module, version 0.61.
 
 To verify the content in this distribution, first make sure you have
 Module::Signature installed, then type:
@@ -14,34 +14,37 @@ not run its Makefile.PL or Build.PL.
 -----BEGIN PGP SIGNED MESSAGE-----
 Hash: SHA1
 
-SHA1 204b5c4feca70e818f0f510aa3f925d1c38f5219 Build.PL
-SHA1 af6a40c9c1993a0649aafffc70c39c0ba63968ca Changes
+SHA1 15e12ca6c30ce643f2af594aa31e39a7615b321d Build.PL
+SHA1 0298353181231c73155a813e1c3a10aec8b63a0a Changes
 SHA1 333263c693790878e4f248b58a22fb84a9b4e4f4 Examples/README
-SHA1 a5c80b9b4dc4e2f9d89d5440ddcfce94bf4a7b8b Examples/act_folder.xpm
-SHA1 24fecfaa097d2b9c827b6a2e97bc2b48622b08b3 Examples/file.xpm
-SHA1 bce2dd5dd026ff1e37fab4cdea38cdd609927092 Examples/folder.xpm
-SHA1 b1a4ee13c72c67abeff5c2b77fb1c98071168d42 Examples/gds2dump
-SHA1 cda244ea7451ffce79a405a8b51269cfc7c69b2e Examples/gdsdump2gds
+SHA1 7f318ce60bd335873919456942643500272a7d14 Examples/act_folder.xpm
+SHA1 54969d562d131cc1693d51c605dd8069176e7667 Examples/file.xpm
+SHA1 8b05b22011c27a97bb96c3b76ef9455b630d56b8 Examples/folder.xpm
+SHA1 ad38a7b5e347b0e0b32cd32337c5a4d85b833b5c Examples/gds2dump
+SHA1 cd96adda966e665a883767ced4d903e1d3c81e9f Examples/gdsdump2gds
 SHA1 894a4a32fee8d007fa11d21b397422777e502735 Examples/gdslayers
 SHA1 c85bbf922af70099913c7cbf705a8d8876888c69 Examples/gdspath4topath0
 SHA1 c52b31ee58f08d247dc8ae2a9e49637c71aab8df Examples/modgds2
-SHA1 0f924bde4e6b4ae9928d7ec39324dc0a76791815 Examples/textfile.xpm
-SHA1 19d84bd9e4c6b86fdc570c53bf086dae68df309a INSTALL
-SHA1 2d839531489e307bfae02580c7127c686d26d71d MANIFEST
-SHA1 0a14d46168d65686c52e8bd029de1cd51f7d6e37 META.yml
+SHA1 837331fb7c6b15d605dc9b1d30eb0dda31b74ff6 Examples/testgds2
+SHA1 9363d7e84e78dfd6039497698734b4d27ad1c85e Examples/testgdt
+SHA1 e5d00c285e9b0a36fdfa381e368f1a7cd845f4ba Examples/textfile.xpm
+SHA1 760c02513bb719669966222f6ccdf08caf203023 INSTALL
+SHA1 5823ccf4453ca253d4437793ace5c632af76700c MANIFEST
+SHA1 67e686426999b4e82cf4e2d0afb20f170f38c39d META.yml
 SHA1 cf1750e1e2343e0284a33b089661500b1e4fe2d5 Makefile.PL
-SHA1 05daf4cca479578b6286f30c9f892221ee0c6cf9 README
+SHA1 091bd68241dd81e3c92b502d668e6f94f9371c7e README
 SHA1 58426bb60eefa0aee21731d1561bcf96193dcc1f TEST.dump
-SHA1 abdaef609bb74674f906726ec3ec5d60f564e704 lib/GDS2.pm
-SHA1 d72ebfadc70857e1d8496f349af343254be5d4a3 lib/GDS2.pm.PL
+SHA1 bb2e76d8d9b4498f6240c57a03959f7fcaeb2879 lib/GDS2.pm
 SHA1 054dbd146baf0d4df0bcd74a41a2c691f89325e0 t/01load.t
 SHA1 c4d32dae63ffc34c566d7d485c7d5d4d6c2bcc34 t/02create.t
-SHA1 78d9529093d12130b9c844b96c5914438c0d9236 t/03dump.t
-SHA1 07140ba7ee7f6b19958b9f13791515f8357e2e55 t/04dump.t
+SHA1 03909ad04e63179c52b64ae9648e5e75ccde13ee t/03dump.t
+SHA1 91475f97d806d2b08e95f87ae411710b30d6f18f t/04dump.t
+SHA1 67ce3487f28b7883732bbe2f816e125b09a9b8cc t/05close2048.t
+SHA1 62c46c14ffe571d3c20867e6891e41606a778078 t/pod.t
 -----BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.2.4 (GNU/Linux)
+Version: GnuPG v1.4.9 (GNU/Linux)
 
-iD8DBQFClYeyIaBLv9P4Al0RAqPuAJ4suKrM4dqRRAGtVeN8v4NWz1ATdACgppMB
-dCSuhnvYqhkXhMf7tRcWXPQ=
-=j0YT
+iEUEARECAAYFAkudvKQACgkQ8yYS6i8J7sHB5gCgmtD08jt6Qh81eXLNP1PFi0JX
+kpgAliZ8qQ+/tQEQo8ZGgdI/cAPI+jc=
+=pGAv
 -----END PGP SIGNATURE-----
