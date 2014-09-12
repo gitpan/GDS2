@@ -1,35 +1,30 @@
-## this file is for CPAN use only
-use Cwd;
-use File::Spec;
+use ExtUtils::MakeMaker;
+my $mmv = $ExtUtils::MakeMaker::VERSION;
+require 5.008001;
 
-unless ( eval "use Module::Build::Compat 0.03; 1" ) {
-    require ExtUtils::MakeMaker;
-
-    print "This module requires Module::Build::Compat to install itself.\n";
-
-    my $yn =
-        ExtUtils::MakeMaker::prompt
-            ( '  Install Module::Build::Compat from CPAN', 'y' );
-
-    if ($yn =~ /^y(es)?/i) {
-        # save this cause CPAN will chdir all over the place.
-        my $cwd = cwd();
-        my $makefile = File::Spec->rel2abs($0);
-
-        require CPAN;
-        CPAN->install('Module::Build::Compat');
-
-        chdir $cwd
-            or die "Cannot chdir to $cwd: $!";
-
-        exec( $^X, $makefile, @ARGV )
-    } else {
-        warn "Cannot install this module " .
-             "without Module::Build.  Exiting ...\n";
-        exit 0;
-    }
-}
-
-Module::Build::Compat->run_build_pl( args => \@ARGV );
-Module::Build::Compat->write_makefile;
+WriteMakefile(
+  'NAME'	     => 'GDS2',
+  'DISTNAME'     => 'GDS2',
+  'AUTHOR'       => 'SCHUMACK Ken Schumack',
+  'VERSION_FROM' => 'lib/GDS2.pm',
+  'test'         => { TESTS => 't/*.t' },
+  'linkext'      => { LINKTYPE=>'' },
+  'dist'         => {'COMPRESS'=>'gzip -9f', 'SUFFIX' => 'gz', 'ZIP'=>'/usr/bin/zip', 'ZIPFLAGS'=>'-rl'},
+   (   $mmv < 6.46
+        ? ()
+        : ( META_MERGE => {
+              requires  => {perl => '5.008001'},
+              resources => {
+                license    => 'http://dev.perl.org/licenses/',
+                homepage   => 'https://metacpan.org/module/GDS2',
+              },
+              no_index => {directory => [qw/t/]},
+            },
+            META_ADD => {
+                build_requires     => {},
+                configure_requires => {}
+            },
+        )
+    ),
+);
 

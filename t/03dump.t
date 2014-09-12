@@ -1,7 +1,7 @@
 my $loaded;
 BEGIN { $| = 1; $loaded = 0; print "1..2\n"; }
 use GDS2;
-sub ok 
+sub ok
 {
     my ($n, $result, @info) = @_;
     if ($result) {
@@ -43,8 +43,9 @@ $gds2FileOut -> close;
 close DUMPIN;
 
 my $gds2File = new GDS2(-fileName => 'testdump.gds');
+my $G_epsilon = $gds2File -> getG_epsilon;
 open(DUMPOUT,">dump.out") or die "Unable to create dump.out $!";
-while ($gds2File -> readGds2Record) 
+while ($gds2File -> readGds2Record)
 {
     print DUMPOUT $gds2File -> returnRecordAsString."\n";
 }
@@ -64,7 +65,7 @@ while (<DUMPIN>)
     if ($line1 ne $line2)
     {
         $good = 0;
-        print STDERR "\nline $lineCnt> old:$line1 != new:$line2 -> Check your Perl - maybe you only need to adjust your LD_LIBRARY_PATH, but your Perl can not do math very accurately.\n";
+        print STDERR "\nline $lineCnt> old:$line1 != new:$line2 -> Check your Perl - maybe you only need to adjust your LD_LIBRARY_PATH, but your Perl can not do math very accurately. Developer note: G_epsilon==$G_epsilon\n";
     }
 }
 close DUMPIN;

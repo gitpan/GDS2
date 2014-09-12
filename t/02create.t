@@ -19,7 +19,7 @@ print "ok 1\n";
 # of the test code):
 
 use strict;
-sub ok 
+sub ok
 {
     my ($n, $result, @info) = @_;
     if ($result) {
@@ -28,12 +28,16 @@ sub ok
     }
     else {
         print "not ok $n\n";
-        print "# @info\n" if @info;
+        print STDERR " ERROR: @info\n" if @info;
     }
 }
 
 my $gds2File = new GDS2(-fileName=>'>test.gds');
-$gds2File -> printInitLib(-name=>'testlib'); 
+my $G_epsilon = $gds2File -> getG_epsilon;
+print STDERR "\n Note: your perl appears to be able to use an epsilon of $G_epsilon\n";
+my $isLittleEndian = $gds2File -> endianness;
+print STDERR " Note: your perl appears to run ".($isLittleEndian ? "littleEndian" : "bigEndian")."\n";
+$gds2File -> printInitLib(-name=>'testlib');
 $gds2File -> printBgnstr(-name=>'test');
 $gds2File -> printPath(
                 -layer=>6,
@@ -41,18 +45,22 @@ $gds2File -> printPath(
                 -width=>2.4,
                 -xy=>[0,0, 10.5,0, 10.5,3.3],
              );
+
 $gds2File -> printSref(
                 -name=>'contact',
                 -xy=>[4,5.5],
              );
+
+# Aref xyList: 1st coord: origin, 2nd coord: X of col * xSpacing + origin, 3rd coord: Y of row * ySpacing + origin
+# see GDS2 pod for more information
 $gds2File -> printAref(
                 -name=>'contact',
                 -columns=>2,
                 -rows=>3,
-                -xy=>[0,0],
+                -xy=>[0,0, 10,0, 0,15],
              );
 $gds2File -> printEndstr;
-$gds2File -> printBgnstr(-name => 'contact'); 
+$gds2File -> printBgnstr(-name => 'contact');
 $gds2File -> printBoundary(
                 -layer=>10,
                 -xy=>[0,0, 1,0, 1,1, 0,1],
@@ -60,5 +68,6 @@ $gds2File -> printBoundary(
 $gds2File -> printEndstr;
 $gds2File -> printEndlib();
 $gds2File -> close();
-ok 2,(stat("test.gds"))[7] == 346, 'Size of test.gds looks wrong.';
+
+ok 2,(stat("test.gds"))[7] == 362, 'Size of created test.gds looks wrong.';
 

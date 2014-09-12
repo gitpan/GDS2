@@ -1,20 +1,21 @@
 ---
+build_requires: {}
+dynamic_config: 0
 name: GDS2
-version: 3.00
-author: []
+version: 3.27
+author: [SCHUMACK Ken Schumack]
 abstract: GDS2 stream module
 license: artistic
 resources:
-  license: http://opensource.org/licenses/artistic-license.php
+  license: http://opensource.org/licenses/artistic-license-1.0
+  homepage: https://metacpan.org/module/GDS2
 requires:
-  perl: v5.8.0
+  perl: 5.008001
 configure_requires:
-  Module::Build: 0.35
+  ExtUtils::MakeMaker: 6.3
+distribution_type: module
 provides:
   GDS2:
     file: lib/GDS2.pm
-    version: 3.00
-generated_by: Module::Build version 0.35
-meta-spec:
-  url: http://module-build.sourceforge.net/META-spec-v1.4.html
-  version: 1.4
+    version: 3.27
+

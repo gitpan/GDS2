@@ -1,18 +1,8 @@
-erl Build.PL  ## Creates Build executable
-  -or-
-perl Build.PL destdir=/someNonDefaultInstallPath  ## to instruct Build where to install
+perl Makefile.PL
+ -or-
+perl Makefile.PL PREFIX=/some/Other/Location
 
-------------------------------------------------------------------------------------------
-
-./Build
-./Build test
-
-------------------------------------------------------------------------------------------
-
-su (or whatever you do to have admin rights)
-./Build test
-./Build install
-
-
-perldoc Module::Build   ## for more information on Build
+make
+make test
+make install
 
