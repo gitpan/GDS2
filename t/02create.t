@@ -34,7 +34,8 @@ sub ok
 
 my $gds2File = new GDS2(-fileName=>'>test.gds');
 my $G_epsilon = $gds2File -> getG_epsilon;
-print STDERR "\n Note: your perl appears to be able to use an epsilon of $G_epsilon\n";
+my $G_fltLen = $gds2File -> getG_fltLen;
+print STDERR "\n Note: your perl appears to be able to use an epsilon of $G_epsilon and fltLen of $G_fltLen\n";
 my $isLittleEndian = $gds2File -> endianness;
 print STDERR " Note: your perl appears to run ".($isLittleEndian ? "littleEndian" : "bigEndian")."\n";
 $gds2File -> printInitLib(-name=>'testlib');

@@ -1,9 +1,9 @@
 package GDS2;
 {
 require 5.008001;
-$GDS2::VERSION = '3.27';
+$GDS2::VERSION = '3.28';
 ## Note: '@ ( # )' used by the what command  E.g. what GDS2.pm
-$GDS2::revision = '@(#) $Id: GDS2.pm,v $ $Revision: 3.27 $ $Date: 2014-09-12 07:12:55-06 $';
+$GDS2::revision = '@(#) $Id: GDS2.pm,v $ $Revision: 3.28 $ $Date: 2014-09-14 03:27:57-06 $';
 #
 
 =pod
@@ -426,11 +426,13 @@ my %RecordTypeData=(
 $GDS2::DefaultClass = 'GDS2' unless defined $GDS2::DefaultClass;
 
 my $G_epsilon="0.001"; ## to take care of floating point representation problems
+my $G_fltLen=3;
 { #it's own name space...
     my $fltLenTmp = sprintf("%0.99f",(1.0/3.0)); $fltLenTmp=~s/^0.(3+).*/$1/; $fltLenTmp = length($fltLenTmp) - 10;
     if ($fltLenTmp > length($G_epsilon)) # try to make smaller if we can...
     {
         $G_epsilon = sprintf("%0.${fltLenTmp}f1",0);
+        $G_fltLen = $fltLenTmp;
     }
 }
 $G_epsilon *= 1; #ensure it's a number
@@ -528,6 +530,15 @@ sub getG_epsilon
 ################################################################################
 
 #######
+#private method to check how accurately users perl can do math
+sub getG_fltLen
+{
+    my($self,%arg) = @_;
+    $G_fltLen;
+}
+################################################################################
+
+#######
 #private method to report Endianness
 sub endianness
 {
@@ -535,6 +546,18 @@ sub endianness
     $isLittleEndian;
 }
 ################################################################################
+
+#######
+#private method to clean up number
+sub cleanFloatNum($)
+{
+    my $num = shift;
+    $num = sprintf("%0.${G_fltLen}f",$num);
+    $num =~ s/([1-9])0+$/$1/; 
+    $num =~ s/0\.0+$/0/; 
+    $num;
+}
+################################################################################ 
 
 =head2 fileNum - file number...
 
@@ -1598,6 +1621,7 @@ sub printGds2Record
     $\='';
 
     my $data = '';
+    @data = () unless (defined $data[0]);
     my $recordLength; ## 1st 2 bytes for length 3rd for recordType 4th for dataType
     if ($type eq 'RECORD') ## special case...
     {
@@ -2357,7 +2381,7 @@ sub returnRecordAsString()
             {
                 $string .= '  ';
             }
-            $string .= $self -> {'RecordData'}[$i]*($self -> {'UUnits'});
+            $string .= cleanFloatNum($self -> {'RecordData'}[$i]*($self -> {'UUnits'}));
             if ($compact && $i && ($i == $#{$self -> {'RecordData'}}))
             {
                 $string =~ s/ +[\d\.\-]+ +[\d\.\-]+$// if ($inBoundary); #remove last point
@@ -2430,7 +2454,7 @@ sub returnXyAsArray()
             }
             else
             {
-                $num = ($self -> {'RecordData'}[$i]) * ($self -> {'UUnits'});
+                $num = cleanFloatNum($self -> {'RecordData'}[$i]*($self -> {'UUnits'}));
             }
             push @xys,$num;
             $i++;

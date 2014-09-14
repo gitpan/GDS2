@@ -1,7 +1,8 @@
 Revision history for Perl extension GDS2 releases
 
-3.27  Final mods.
-      Peace, Ken
+3.28  Try to help test problems on Linux machines.
+
+3.27  Final mods for users.
 
 3.00  Removed C code.
       Updated -pad option to close()
