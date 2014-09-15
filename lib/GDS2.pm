@@ -1,9 +1,9 @@
 package GDS2;
 {
 require 5.008001;
-$GDS2::VERSION = '3.30';
+$GDS2::VERSION = '3.31';
 ## Note: '@ ( # )' used by the what command  E.g. what GDS2.pm
-$GDS2::revision = '@(#) $Id: GDS2.pm,v $ $Revision: 3.30 $ $Date: 2014-09-15 03:27:57-06 $';
+$GDS2::revision = '@(#) $Id: GDS2.pm,v $ $Revision: 3.31 $ $Date: 2014-09-15 03:27:57-06 $';
 #
 
 =pod
@@ -437,6 +437,90 @@ my $G_fltLen=3;
     }
 }
 $G_epsilon *= 1; #ensure it's a number
+
+################################################################################
+
+=head1 Examples
+
+  Layer change:
+    here's a bare bones script to change all layer 59 to 66 given a file to
+    read and a new file to create.
+    #!/usr/bin/perl -w
+    use strict;
+    use GDS2;
+    my $fileName1 = $ARGV[0];
+    my $fileName2 = $ARGV[1];
+
+    my $gds2File1 = new GDS2(-fileName => $fileName1);
+    my $gds2File2 = new GDS2(-fileName => ">$fileName2");
+
+    while (my $record = $gds2File1 -> readGds2Record)
+    {
+        if ($gds2File1 -> returnLayer == 59)
+        {
+            $gds2File2 -> printLayer(-num=>66);
+        }
+        else
+        {
+            $gds2File2 -> printRecord(-data=>$record);
+        }
+    }
+
+
+  Gds2 dump:
+    here's a program to dump the contents of a stream file.
+    #!/usr/bin/perl -w
+    use GDS2;
+    $\="\n";
+
+    my $gds2File = new GDS2(-fileName=>$ARGV[0]);
+    while ($gds2File -> readGds2Record)
+    {
+        print $gds2File -> returnRecordAsString;
+    }
+
+  Gds2 dump in GDT format (http://sourceforge.net/projects/gds2/) which is easier to parse
+    #!/usr/bin/perl -w
+    use GDS2;
+    $\="\n";
+
+    my $gds2File = new GDS2(-fileName=>$ARGV[0]);
+    while ($gds2File -> readGds2Record)
+    {
+        print $gds2File -> returnRecordAsString(-compact);
+    }
+
+
+  Create a complete GDS2 stream file from scratch:
+    #!/usr/bin/perl -w
+    use GDS2;
+    my $gds2File = new GDS2(-fileName=>'>test.gds');
+    $gds2File -> printInitLib(-name=>'testlib');
+    $gds2File -> printBgnstr(-name=>'test');
+    $gds2File -> printPath(
+                    -layer=>6,
+                    -pathType=>0,
+                    -width=>2.4,
+                    -xy=>[0,0, 10.5,0, 10.5,3.3],
+                 );
+    $gds2File -> printSref(
+                    -name=>'contact',
+                    -xy=>[4,5.5],
+                 );
+    $gds2File -> printAref(
+                    -name=>'contact',
+                    -columns=>2,
+                    -rows=>3,
+                    -xy=>[0,0, 10,0, 0,15],
+                 );
+    $gds2File -> printEndstr;
+    $gds2File -> printBgnstr(-name => 'contact');
+    $gds2File -> printBoundary(
+                    -layer=>10,
+                    -xy=>[0,0, 1,0, 1,1, 0,1],
+                 );
+    $gds2File -> printEndstr;
+    $gds2File -> printEndlib();
 
 ################################################################################
 
@@ -4632,88 +4716,6 @@ sub putStrSpace
 }
 
 __END__
-
-=head1 Examples
-
-  Layer change:
-    here's a bare bones script to change all layer 59 to 66 given a file to
-    read and a new file to create.
-    #!/usr/bin/perl -w
-    use strict;
-    use GDS2;
-    my $fileName1 = $ARGV[0];
-    my $fileName2 = $ARGV[1];
-
-    my $gds2File1 = new GDS2(-fileName => $fileName1);
-    my $gds2File2 = new GDS2(-fileName => ">$fileName2");
-
-    while (my $record = $gds2File1 -> readGds2Record)
-    {
-        if ($gds2File1 -> returnLayer == 59)
-        {
-            $gds2File2 -> printLayer(-num=>66);
-        }
-        else
-        {
-            $gds2File2 -> printRecord(-data=>$record);
-        }
-    }
-
-
-  Gds2 dump:
-    here's a program to dump the contents of a stream file.
-    #!/usr/bin/perl -w
-    use GDS2;
-    $\="\n";
-
-    my $gds2File = new GDS2(-fileName=>$ARGV[0]);
-    while ($gds2File -> readGds2Record)
-    {
-        print $gds2File -> returnRecordAsString;
-    }
-
-  Gds2 dump in GDT format (http://sourceforge.net/projects/gds2/) which is easier to parse
-    #!/usr/bin/perl -w
-    use GDS2;
-    $\="\n";
-
-    my $gds2File = new GDS2(-fileName=>$ARGV[0]);
-    while ($gds2File -> readGds2Record)
-    {
-        print $gds2File -> returnRecordAsString(-compact);
-    }
-
-
-  Create a complete GDS2 stream file from scratch:
-    #!/usr/bin/perl -w
-    use GDS2;
-    my $gds2File = new GDS2(-fileName=>'>test.gds');
-    $gds2File -> printInitLib(-name=>'testlib');
-    $gds2File -> printBgnstr(-name=>'test');
-    $gds2File -> printPath(
-                    -layer=>6,
-                    -pathType=>0,
-                    -width=>2.4,
-                    -xy=>[0,0, 10.5,0, 10.5,3.3],
-                 );
-    $gds2File -> printSref(
-                    -name=>'contact',
-                    -xy=>[4,5.5],
-                 );
-    $gds2File -> printAref(
-                    -name=>'contact',
-                    -columns=>2,
-                    -rows=>3,
-                    -xy=>[0,0, 10,0, 0,15],
-                 );
-    $gds2File -> printEndstr;
-    $gds2File -> printBgnstr(-name => 'contact');
-    $gds2File -> printBoundary(
-                    -layer=>10,
-                    -xy=>[0,0, 1,0, 1,1, 0,1],
-                 );
-    $gds2File -> printEndstr;
-    $gds2File -> printEndlib();
 
 =head1 GDS2 Stream Format
 

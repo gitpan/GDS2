@@ -21,7 +21,9 @@ SIGNATURE
 t/01load.t
 t/02create.t
 t/03dump.t
-t/04dump.t
-t/05close2048.t
-t/pod.t
+t/04dumpGdt.t
+t/05dump.t
+t/06close2048.t
+t/09pod.t
 TEST.dump
+TEST.gdt
