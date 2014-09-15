@@ -1,9 +1,9 @@
 package GDS2;
 {
 require 5.008001;
-$GDS2::VERSION = '3.28';
+$GDS2::VERSION = '3.29';
 ## Note: '@ ( # )' used by the what command  E.g. what GDS2.pm
-$GDS2::revision = '@(#) $Id: GDS2.pm,v $ $Revision: 3.28 $ $Date: 2014-09-14 03:27:57-06 $';
+$GDS2::revision = '@(#) $Id: GDS2.pm,v $ $Revision: 3.29 $ $Date: 2014-09-14 03:27:57-06 $';
 #
 
 =pod
@@ -456,12 +456,12 @@ sub new
     my $self = {};
     bless $self,$class || ref $class || $GDS2::DefaultClass;
     my $fileName = $arg{'-fileName'};
-    if (! defined $fileName)
+    unless (defined $fileName)
     {
         die "new expects a gds2 file name. Missing -fileName => 'name' $!";
     }
     my $resolution = $arg{'-resolution'};
-    if (! defined $resolution)
+    unless (defined $resolution)
     {
         $resolution=1000;
     }
@@ -494,7 +494,7 @@ sub new
     {
         flock($fileHandle,$lockMode) or die "File lock on $fileName failed because $!";
     }
-    binmode $fileHandle,':raw'; ## may need Perl 5.6 for discipline
+    binmode $fileHandle,':raw';
     $self -> {'Fd'}         = $fileHandle -> fileno;
     $self -> {'FileHandle'} = $fileHandle;
     $self -> {'FileName'}   = $fileName; ## the gds2 filename
@@ -641,7 +641,7 @@ sub printInitLib
 {
     my($self,%arg) = @_;
     my $libName = $arg{'-name'};
-    if (! defined $libName)
+    unless (defined $libName)
     {
         die "printInitLib expects a library name. Missing -name => 'name' $!";
     }
@@ -664,15 +664,13 @@ sub printInitLib
     }
     else
     {
-        $self -> {'Resolution'} = (1 / $uUnit); ## default is 1000 - already set in new()
+        $self -> {'Resolution'} = cleanFloatNum(1 / $uUnit); ## default is 1000 - already set in new()
     }
     $self -> {'UUnits'} = $uUnit;
+
     #################################################
     my $dbUnit = $arg{'-dbUnit'};
-    if (! defined $dbUnit)
-    {
-        $dbUnit = 1e-9;
-    }
+    $dbUnit = 1e-9 unless (defined $dbUnit);
     $self -> {'DBUnits'} = $dbUnit;
     #################################################
 
@@ -703,7 +701,7 @@ sub printBgnstr
     my($self,%arg) = @_;
 
     my $strName = $arg{'-name'};
-    if (! defined $strName)
+    unless (defined $strName)
     {
         die "bgnStr expects a structure name. Missing -name => 'name' $!";
     }
@@ -781,19 +779,19 @@ sub printPath
     my($self,%arg) = @_;
     my $resolution = $self -> {'Resolution'};
     my $layer = $arg{'-layer'};
-    $layer=0 if (! defined $layer);
+    $layer=0 unless ( defined $layer);
 
     my $dataType = $arg{'-dataType'};
-    $dataType=0 if (! defined $dataType);
+    $dataType=0 unless (defined $dataType);
 
     my $pathType = $arg{'-pathType'};
-    $pathType=0 if (! defined $pathType);
+    $pathType=0 unless (defined $pathType);
 
     my $bgnExtn = $arg{'-bgnExtn'};
-    $bgnExtn=0 if (! defined $bgnExtn);
+    $bgnExtn=0 unless (defined $bgnExtn);
 
     my $endExtn = $arg{'-endExtn'};
-    $endExtn=0 if (! defined $endExtn);
+    $endExtn=0 unless (defined $endExtn);
 
     my $unitWidth = $arg{'-unitWidth'};
     my $widthReal = $arg{'-width'};
@@ -932,20 +930,14 @@ sub printBoundary
     my($self,%arg) = @_;
     my $resolution = $self -> {'Resolution'};
     my $layer = $arg{'-layer'};
-    if (! defined $layer)
-    {
-        $layer=0;
-    }
+    $layer=0 unless (defined $layer);
     my $dataType = $arg{'-dataType'};
-    if (! defined $dataType)
-    {
-        $dataType=0;
-    }
+    $dataType=0 unless (defined $dataType);
     #### -xyInt most useful if reading and modifying... -xy if creating from scratch
     my $xyInt = $arg{'-xyInt'}; ## $xyInt should be a reference to an array of internal GDS2 format integers
     my $xy = $arg{'-xy'}; ## $xy should be a reference to an array of reals
     my @xyTmp=(); ##don't pollute array passed in
-    if (! ((defined $xy) || (defined $xyInt)))
+    unless (defined($xy) || defined($xyInt))
     {
         die "printBoundary expects an xy array reference. Missing -xy => \\\@array $!";
     }
@@ -1005,14 +997,14 @@ sub printSref
     my $useSTRANS=FALSE;
     my $resolution = $self -> {'Resolution'};
     my $sname = $arg{'-name'};
-    if (! defined $sname)
+    unless (defined $sname)
     {
         die "printSref expects a name string. Missing -name => 'text' $!";
     }
     #### -xyInt most useful if reading and modifying... -xy if creating from scratch
     my $xyInt = $arg{'-xyInt'}; ## $xyInt should be a reference to an array of internal GDS2 format integers
     my $xy = $arg{'-xy'}; ## $xy should be a reference to an array of reals
-    if (! ((defined $xy) || (defined $xyInt)))
+    unless (defined($xy) || defined($xyInt))
     {
         die "printSref expects an xy array reference. Missing -xy => \\\@array $!";
     }
@@ -1040,6 +1032,7 @@ sub printSref
     }
     else
     {
+        $mag = cleanFloatNum($mag);
         $useSTRANS=TRUE;
     }
     my $angle = $arg{'-angle'};
@@ -1099,14 +1092,14 @@ sub printAref
     my $useSTRANS=FALSE;
     my $resolution = $self -> {'Resolution'};
     my $sname = $arg{'-name'};
-    if (! defined $sname)
+    unless (defined $sname)
     {
         die "printAref expects a sname string. Missing -name => 'text' $!";
     }
     #### -xyInt most useful if reading and modifying... -xy if creating from scratch
     my $xyInt = $arg{'-xyInt'}; ## $xyInt should be a reference to an array of internal GDS2 format integers
     my $xy = $arg{'-xy'}; ## $xy should be a reference to an array of reals
-    if (! ((defined $xy) || (defined $xyInt)))
+    unless (defined($xy) || defined($xyInt))
     {
         die "printAref expects an xy array reference. Missing -xy => \\\@array $!";
     }
@@ -1134,6 +1127,7 @@ sub printAref
     }
     else
     {
+        $mag = cleanFloatNum($mag);
         $useSTRANS=TRUE;
     }
     my $angle = $arg{'-angle'};
@@ -1160,7 +1154,7 @@ sub printAref
     }
     else
     {
-        $columns=int($columns);
+        $columns = int($columns);
     }
     my $rows = $arg{'-rows'};
     if ((! defined $rows)||($rows <= 0))
@@ -1169,7 +1163,7 @@ sub printAref
     }
     else
     {
-        $rows=int($rows);
+        $rows = int($rows);
     }
     $self -> printGds2Record(-type => 'COLROW',-data => [$columns,$rows]);
     my @xyTmp=(); ##don't pollute array passed in
@@ -1216,7 +1210,7 @@ sub printText
     my($self,%arg) = @_;
     my $useSTRANS=FALSE;
     my $string = $arg{'-string'};
-    if (! defined $string)
+    unless (defined $string)
     {
         die "printText expects a string. Missing -string => 'text' $!";
     }
@@ -1242,7 +1236,7 @@ sub printText
     {
         $x = $x2;
     }
-    if (! defined $x)
+    unless (defined $x)
     {
         die "printText expects a x coord. Missing -xy=>\@array or -x => 'num' $!";
     }
@@ -1254,7 +1248,7 @@ sub printText
     {
         $y = $y2;
     }
-    if (! defined $y)
+    unless (defined $y)
     {
         die "printText expects a y coord. Missing -xy=>\@array or -y => 'num' $!";
     }
@@ -1262,15 +1256,9 @@ sub printText
     else       {$y = int(($y*$resolution)-$G_epsilon);}
 
     my $layer = $arg{'-layer'};
-    if (! defined $layer)
-    {
-        $layer=0;
-    }
+    $layer=0 unless (defined $layer);
     my $textType = $arg{'-textType'};
-    if (! defined $textType)
-    {
-        $textType=0;
-    }
+    $textType=0 unless (defined $textType);
     my $reflect = $arg{'-reflect'};
     if ((! defined $reflect)||($reflect <= 0))
     {
@@ -1310,6 +1298,10 @@ sub printText
     if ((! defined $mag)||($mag <= 0))
     {
         $mag=0;
+    }
+    else
+    {
+        $mag = cleanFloatNum($mag);
     }
     my $angle = $arg{'-angle'};
     if (! defined $angle)
@@ -2576,7 +2568,7 @@ sub printAngle
 {
     my($self,%arg) = @_;
     my $angle = $arg{'-num'};
-    $angle=0 if (! defined $angle);
+    $angle=0 unless (defined $angle);
     $angle=posAngle($angle);
     $self -> printGds2Record(-type => 'ANGLE',-data => $angle) if ($angle);
 }
@@ -2593,7 +2585,7 @@ sub printAttrtable
 {
     my($self,%arg) = @_;
     my $string = $arg{'-string'};
-    if (! defined $string)
+    unless (defined $string)
     {
         die "printAttrtable expects a string. Missing -string => 'text' $!";
     }
@@ -2612,7 +2604,7 @@ sub printBgnextn
 {
     my($self,%arg) = @_;
     my $num = $arg{'-num'};
-    if (! defined $num)
+    unless (defined $num)
     {
         die "printBgnextn expects a extension number. Missing -num => #.# $!";
     }
@@ -2676,7 +2668,7 @@ sub printBoxtype
 {
     my($self,%arg) = @_;
     my $num = $arg{'-num'};
-    if (! defined $num)
+    unless (defined $num)
     {
         die "printBoxtype expects a number. Missing -num => # $!";
     }
@@ -2727,7 +2719,7 @@ sub printDatatype
 {
     my($self,%arg) = @_;
     my $dataType = $arg{'-num'};
-    if (! defined $dataType)
+    unless (defined $dataType)
     {
         $dataType=0;
     }
@@ -2753,7 +2745,7 @@ sub printElkey
 {
     my($self,%arg) = @_;
     my $num = $arg{'-num'};
-    if (! defined $num)
+    unless (defined $num)
     {
         die "printElkey expects a number. Missing -num => #.# $!";
     }
@@ -2783,7 +2775,7 @@ sub printEndextn
 {
     my($self,%arg) = @_;
     my $num = $arg{'-num'};
-    if (! defined $num)
+    unless (defined $num)
     {
         die "printEndextn expects a extension number. Missing -num => #.# $!";
     }
@@ -2838,7 +2830,7 @@ sub printFonts
 {
     my($self,%arg) = @_;
     my $string = $arg{'-string'};
-    if (! defined $string)
+    unless (defined $string)
     {
         die "printFonts expects a string. Missing -string => 'text' $!";
     }
@@ -2850,7 +2842,7 @@ sub printFormat
 {
     my($self,%arg) = @_;
     my $num = $arg{'-num'};
-    if (! defined $num)
+    unless (defined $num)
     {
         die "printFormat expects a number. Missing -num => #.# $!";
     }
@@ -2878,7 +2870,7 @@ sub printHeader
 {
     my($self,%arg) = @_;
     my $rev = $arg{'-num'};
-    if (! defined $rev)
+    unless (defined $rev)
     {
         $rev=3;
     }
@@ -2899,10 +2891,7 @@ sub printLayer
 {
     my($self,%arg) = @_;
     my $layer = $arg{'-num'};
-    if (! defined $layer)
-    {
-        $layer=0;
-    }
+    $layer = 0 unless (defined $layer);
     $self -> printGds2Record(-type => 'LAYER',-data => $layer);
 }
 ################################################################################
@@ -2925,7 +2914,7 @@ sub printLibname
 {
     my($self,%arg) = @_;
     my $libName = $arg{'-name'};
-    if (! defined $libName)
+    unless (defined $libName)
     {
         die "printLibname expects a library name. Missing -name => 'name' $!";
     }
@@ -2944,7 +2933,7 @@ sub printLinkkeys
 {
     my($self,%arg) = @_;
     my $num = $arg{'-num'};
-    if (! defined $num)
+    unless (defined $num)
     {
         die "printLinkkeys expects a number. Missing -num => #.# $!";
     }
@@ -2956,7 +2945,7 @@ sub printLinktype
 {
     my($self,%arg) = @_;
     my $num = $arg{'-num'};
-    if (! defined $num)
+    unless (defined $num)
     {
         die "printLinktype expects a number. Missing -num => #.# $!";
     }
@@ -2996,7 +2985,8 @@ sub printMag
     my($self,%arg) = @_;
     my $mag = $arg{'-num'};
     $mag=0 if ((! defined $mag)||($mag <= 0));
-    $self -> printGds2Record(-type => 'MAG',-data => $mag)if ($mag);
+    $mag = cleanFloatNum($mag);
+    $self -> printGds2Record(-type => 'MAG',-data => $mag) if ($mag);
 }
 ################################################################################
 
@@ -3004,7 +2994,7 @@ sub printMask
 {
     my($self,%arg) = @_;
     my $string = $arg{'-string'};
-    if (! defined $string)
+    unless (defined $string)
     {
         die "printMask expects a string. Missing -string => 'text' $!";
     }
@@ -3032,7 +3022,7 @@ sub printNodetype
 {
     my($self,%arg) = @_;
     my $num = $arg{'-num'};
-    if (! defined $num)
+    unless (defined $num)
     {
         die "printNodetype expects a number. Missing -num => # $!";
     }
@@ -3044,7 +3034,7 @@ sub printPlex
 {
     my($self,%arg) = @_;
     my $num = $arg{'-num'};
-    if (! defined $num)
+    unless (defined $num)
     {
         die "printPlex expects a number. Missing -num => #.# $!";
     }
@@ -3108,7 +3098,7 @@ sub printPropattr
 {
     my($self,%arg) = @_;
     my $num = $arg{'-num'};
-    if (! defined $num)
+    unless (defined $num)
     {
         die "printPropattr expects a number. Missing -num => # $!";
     }
@@ -3127,7 +3117,7 @@ sub printPropvalue
 {
     my($self,%arg) = @_;
     my $string = $arg{'-string'};
-    if (! defined $string)
+    unless (defined $string)
     {
         die "printPropvalue expects a string. Missing -string => 'text' $!";
     }
@@ -3139,7 +3129,7 @@ sub printReflibs
 {
     my($self,%arg) = @_;
     my $string = $arg{'-string'};
-    if (! defined $string)
+    unless (defined $string)
     {
         die "printReflibs expects a string. Missing -string => 'text' $!";
     }
@@ -3151,7 +3141,7 @@ sub printReserved
 {
     my($self,%arg) = @_;
     my $num = $arg{'-num'};
-    if (! defined $num)
+    unless (defined $num)
     {
         die "printReserved expects a number. Missing -num => #.# $!";
     }
@@ -3234,7 +3224,7 @@ sub printString
 {
     my($self,%arg) = @_;
     my $string = $arg{'-string'};
-    if (! defined $string)
+    unless (defined $string)
     {
         die "printString expects a string. Missing -string => 'text' $!";
     }
@@ -3253,7 +3243,7 @@ sub printStrname
 {
     my($self,%arg) = @_;
     my $strName = $arg{'-name'};
-    if (! defined $strName)
+    unless (defined $strName)
     {
         die "printStrname expects a structure name. Missing -name => 'name' $!";
     }
@@ -3272,7 +3262,7 @@ sub printStyptable
 {
     my($self,%arg) = @_;
     my $string = $arg{'-string'};
-    if (! defined $string)
+    unless (defined $string)
     {
         die "printStyptable expects a string. Missing -string => 'text' $!";
     }
@@ -3284,7 +3274,7 @@ sub printTapecode
 {
     my($self,%arg) = @_;
     my $num = $arg{'-num'};
-    if (! defined $num)
+    unless (defined $num)
     {
         die "printTapecode expects a number. Missing -num => #.# $!";
     }
@@ -3296,7 +3286,7 @@ sub printTapenum
 {
     my($self,%arg) = @_;
     my $num = $arg{'-num'};
-    if (! defined $num)
+    unless (defined $num)
     {
         die "printTapenum expects a number. Missing -num => #.# $!";
     }
@@ -3322,7 +3312,7 @@ sub printTexttype
 {
     my($self,%arg) = @_;
     my $num = $arg{'-num'};
-    if (! defined $num)
+    unless (defined $num)
     {
         die "printTexttype expects a number. Missing -num => # $!";
     }
@@ -3362,7 +3352,7 @@ sub printUnits
     $self -> {'UUnits'} = $uUnit;
     #################################################
     my $dbUnit = $arg{'-dbUnit'};
-    if (! defined $dbUnit)
+    unless (defined $dbUnit)
     {
         $dbUnit = 1e-9;
     }
@@ -4496,6 +4486,7 @@ sub posAngle($)
     my $angle = shift;
     $angle += 360.0 while ($angle < 0.0);
     $angle -= 360.0 while ($angle >= 360.0);
+    $angle = cleanFloatNum($angle);
     $angle;
 }
 ################################################################################
