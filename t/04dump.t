@@ -19,6 +19,7 @@ ok(1,$loaded,'problem with GDS2 load.');
 open(DUMPIN,"TEST.dump") or die "Unable to read TEST.dump because $!";
 my $gds2FileOut = new GDS2(-fileName => ">testdump.gds");
 my $G_epsilon = $gds2FileOut -> getG_epsilon;
+my $G_fltLen = $gds2FileOut -> getG_fltLen;
 my $isLittleEndian = $gds2FileOut -> endianness;
 my $dataString;
 while (<DUMPIN>)
@@ -67,7 +68,7 @@ while (<DUMPIN>)
     if ($line1 ne $line2)
     {
         $good = 0;
-        print STDERR "\nline $lineCnt> old:$line1 != new:$line2 -> Check your Perl - maybe you only need to adjust your LD_LIBRARY_PATH, but your Perl can not do math very accurately. Developer note: G_epsilon==$G_epsilon isLittleEndian==$isLittleEndian\n";
+        print STDERR "\nline $lineCnt> old:$line1 != new:$line2 -> DeveloperNote: G_epsilon==$G_epsilon  G_fltLen=$G_fltLen isLittleEndian==$isLittleEndian\n";
     }
 }
 close DUMPIN;

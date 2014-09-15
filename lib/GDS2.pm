@@ -1,9 +1,9 @@
 package GDS2;
 {
 require 5.008001;
-$GDS2::VERSION = '3.29';
+$GDS2::VERSION = '3.30';
 ## Note: '@ ( # )' used by the what command  E.g. what GDS2.pm
-$GDS2::revision = '@(#) $Id: GDS2.pm,v $ $Revision: 3.29 $ $Date: 2014-09-14 03:27:57-06 $';
+$GDS2::revision = '@(#) $Id: GDS2.pm,v $ $Revision: 3.30 $ $Date: 2014-09-15 03:27:57-06 $';
 #
 
 =pod
@@ -48,7 +48,8 @@ http://sourceforge.net/projects/gds2/
 # pointed out a endian problem that needed to be addressed.
 #
 # 2014-02-08 modified 02create.t after learning that Joe Walsh was
-# using the test program (gasp) to learn how to use module.
+# using the test program to learn how to use module (please
+# look at examples and POD instead).
 #
 # POD documentation is sprinkled throughout the file in an
 # attempt at Literate Programming style (which Perl partly supports ...
@@ -504,8 +505,8 @@ sub new
     $self -> {'INDATA'}     = FALSE;     ## in data? flag TRUE | FALSE
     $self -> {'Length'}     = 0;         ## length of data
     $self -> {'DataType'}   = UNKNOWN;   ## one of 7 gds datatypes
-    $self -> {'UUnits'}     = -1.0;      ## for gds2 file
-    $self -> {'DBUnits'}    = -1.0;      ## for gds2 file
+    $self -> {'UUnits'}     = -1.0;      ## for gds2 file  e.g. 0.001
+    $self -> {'DBUnits'}    = -1.0;      ## for gds2 file  e.g. 1e-9
     $self -> {'Record'}     = '';        ## the whole record as found in gds2 file
     $self -> {'RecordType'} = UNKNOWN;
     $self -> {'DataIndex'}  = 0;
@@ -549,15 +550,27 @@ sub endianness
 
 #######
 #private method to clean up number
+sub cleanExpNum($)
+{
+    my $num = shift;
+    $num = sprintf("%0.${G_fltLen}e",$num);
+    $num =~ s/([1-9])0+e/$1e/;
+    $num =~ s/(\d)\.0+e/$1e/;
+    $num;
+}
+################################################################################
+
+#######
+#private method to clean up number
 sub cleanFloatNum($)
 {
     my $num = shift;
     $num = sprintf("%0.${G_fltLen}f",$num);
-    $num =~ s/([1-9])0+$/$1/; 
-    $num =~ s/0\.0+$/0/; 
+    $num =~ s/([1-9])0+$/$1/;
+    $num =~ s/(\d)\.0+$/$1/;
     $num;
 }
-################################################################################ 
+################################################################################
 
 =head2 fileNum - file number...
 
@@ -757,7 +770,9 @@ sub printBgnstr
                     -pathType=>#,
                     -width=>#.#,
                     -unitWidth=>#,    ## (optional) directly specify width in data base units (vs -width which is multipled by resolution)
+
                     -xy=>\@array,     ## array of reals
+                      # -or-
                     -xyInt=>\@array,  ## array of internal ints (optional -wks better if you are modifying an existing GDS2 file)
                   );
 
@@ -913,7 +928,9 @@ sub printPath
     $gds2File -> printBoundary(
                     -layer=>#,
                     -dataType=>#,
+
                     -xy=>\@array,     ## ref to array of reals
+                      # -or-
                     -xyInt=>\@array,  ## ref to array of internal ints (optional -wks better if you are modifying an existing GDS2 file)
                  );
 
@@ -976,8 +993,11 @@ sub printBoundary
   usage:
     $gds2File -> printSref(
                     -name=>string,   ## Name of structure
+
                     -xy=>\@array,    ## ref to array of reals
+                      # -or-
                     -xyInt=>\@array, ## ref to array of internal ints (optional -wks better than -xy if you are modifying an existing GDS2 file)
+
                     -angle=>#.#,     ## (optional) Default is 0.0
                     -mag=>#.#,       ## (optional) Default is 1.0
                     -reflect=>0|1    ## (optional)
@@ -1070,8 +1090,11 @@ sub printSref
                     -name=>string,   ## Name of structure
                     -columns=>#,     ## Default is 1
                     -rows=>#,        ## Default is 1
+
                     -xy=>\@array,    ## ref to array of reals
+                      # -or-
                     -xyInt=>\@array, ## ref to array of internal ints (optional -wks better if you are modifying an existing GDS2 file)
+
                     -angle=>#.#,     ## (optional) Default is 0.0
                     -mag=>#.#,       ## (optional) Default is 1.0
                     -reflect=>0|1    ## (optional)
@@ -1187,8 +1210,11 @@ sub printAref
                     -font=>#,       ## 0-3
                     -top, or -middle, -bottom,     ##optional vertical presentation
                     -left, or -center, or -right,  ##optional horizontal presentation
+
                     -xy=>\@array,     ## ref to array of reals
+                      # -or-
                     -xyInt=>\@array,  ## ref to array of internal ints (optional -wks better if you are modifying an existing GDS2 file)
+
                     -x=>#.#,          ## optional way of passing in x value
                     -y=>#.#,          ## optional way of passing in y value
                     -angle=>#.#,      ## (optional) Default is 0.0
@@ -1596,7 +1622,7 @@ sub printGds2Record
     my ($self,%arg) = @_;
 
     my $type = $arg{'-type'};
-    if (! defined $type)
+    unless (defined $type)
     {
         die "printGds2Record expects a type name. Missing -type => 'name' $!";
     }
@@ -2118,7 +2144,7 @@ sub readGds2RecordData
     {
         die "4-byte reals are not supported $!";
     }
-    elsif ($self -> {'DataType'} == REAL_8)  ## 8 byte real
+    elsif ($self -> {'DataType'} == REAL_8)  ## 8 byte real - UNITS, MAG, ANGLE
     {
         my $resolution = $self -> {'Resolution'};
         my $tmpListString = '';
@@ -2303,10 +2329,7 @@ sub returnRecordAsString()
                 $string .= '  '.$bitString;
             }
         }
-        elsif (
-            ($self -> {'DataType'} == INTEGER_2) ||
-            ($self -> {'DataType'} == REAL_8)
-        )
+        elsif ($self -> {'DataType'} == INTEGER_2)
         {
             if ($compact)
             {
@@ -2380,6 +2403,32 @@ sub returnRecordAsString()
                 $string .= ')';
             }
         }
+        elsif ($self -> {'DataType'} == REAL_8)
+        {
+            if ($compact)
+            {
+                $string .= ' ' unless ($string =~ m/ (a|m|pt|dt|tt)$/i);
+            }
+            else
+            {
+                $string .= '  ';
+            }
+            my $num = $self -> {'RecordData'}[$i];
+            if ($num =~ m/e/i)
+            {
+                $num = cleanExpNum($num);
+            }
+            else
+            {
+                $num = cleanFloatNum($num);
+            }
+            $string .= $num;
+            if ($recordType eq 'UNITS')
+            {
+                $string =~ s|(\d)\.e|$1e|; ## perl on Cygwin prints "1.e-9" others "1e-9"
+                $string =~ s|(\d)e\-0+|$1e-|; ## different perls print 1e-9 1e-09 1e-009 etc... standardize to shorter 1e-9
+            }
+        }
         elsif ($self -> {'DataType'} == ACSII_STRING)
         {
             $string .= ' ' if (! $compact);
@@ -2415,15 +2464,9 @@ sub returnXyAsArray()
 {
     my($self,%arg) = @_;
     my $asInteger = $arg{'-asInteger'};
-    if (! defined $asInteger)
-    {
-        $asInteger = TRUE;
-    }
+    $asInteger = TRUE unless (defined $asInteger);
     my $withClosure = $arg{'-withClosure'};
-    if (! defined $withClosure)
-    {
-        $withClosure = TRUE;
-    }
+    $withClosure = TRUE unless (defined $withClosure);
     my @xys=();
     if ($self -> isXy)
     {
@@ -2473,16 +2516,13 @@ sub returnXyAsArray()
 sub returnRecordAsPerl()
 {
     my($self,%arg) = @_;
+
     my $gds2File = $arg{'-gds2File'};
-    if (! defined $gds2File)
-    {
-        $gds2File = '$gds2File';
-    }
+    $gds2File = '$gds2File' unless (defined $gds2File);
+
     my $PGR = $arg{'-printGds2Record'};
-    if (! defined $PGR)
-    {
-        $PGR = 'printGds2Record';
-    }
+    $PGR = 'printGds2Record' unless (defined $PGR);
+
     my $string = '';
     $self -> {'UsingPrettyPrint'} = TRUE;
     $string .= getStrSpace() if ($self -> {'RecordType'} != BGNSTR);
@@ -2719,10 +2759,7 @@ sub printDatatype
 {
     my($self,%arg) = @_;
     my $dataType = $arg{'-num'};
-    unless (defined $dataType)
-    {
-        $dataType=0;
-    }
+    $dataType=0 unless (defined $dataType);
     $self -> printGds2Record(-type => 'DATATYPE',-data => $dataType);
 }
 ################################################################################

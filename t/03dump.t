@@ -44,6 +44,7 @@ close DUMPIN;
 
 my $gds2File = new GDS2(-fileName => 'testdump.gds');
 my $G_epsilon = $gds2File -> getG_epsilon;
+my $G_fltLen = $gds2File -> getG_fltLen;
 open(DUMPOUT,">dump.out") or die "Unable to create dump.out $!";
 while ($gds2File -> readGds2Record)
 {
@@ -65,7 +66,7 @@ while (<DUMPIN>)
     if ($line1 ne $line2)
     {
         $good = 0;
-        print STDERR "\nline $lineCnt> old:$line1 != new:$line2 -> Check your Perl - maybe you only need to adjust your LD_LIBRARY_PATH, but your Perl can not do math very accurately. Developer note: G_epsilon==$G_epsilon\n";
+        print STDERR "\nline $lineCnt> old:$line1 != new:$line2 -> DeveloperNote: G_epsilon==$G_epsilon G_fltLen=$G_fltLen\n";
     }
 }
 close DUMPIN;
