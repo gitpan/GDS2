@@ -1,9 +1,9 @@
 package GDS2;
 {
 require 5.008001;
-$GDS2::VERSION = '3.31';
+$GDS2::VERSION = '3.32';
 ## Note: '@ ( # )' used by the what command  E.g. what GDS2.pm
-$GDS2::revision = '@(#) $Id: GDS2.pm,v $ $Revision: 3.31 $ $Date: 2014-09-15 03:27:57-06 $';
+$GDS2::revision = '@(#) $Id: GDS2.pm,v $ $Revision: 3.32 $ $Date: 2014-09-15 03:27:57-06 $';
 #
 
 =pod
@@ -426,6 +426,7 @@ my %RecordTypeData=(
 # This is the default class for the GDS2 object to use when all else fails.
 $GDS2::DefaultClass = 'GDS2' unless defined $GDS2::DefaultClass;
 
+my $G_gdtString="";
 my $G_epsilon="0.001"; ## to take care of floating point representation problems
 my $G_fltLen=3;
 { #it's own name space...
@@ -450,10 +451,8 @@ $G_epsilon *= 1; #ensure it's a number
     use GDS2;
     my $fileName1 = $ARGV[0];
     my $fileName2 = $ARGV[1];
-
     my $gds2File1 = new GDS2(-fileName => $fileName1);
     my $gds2File2 = new GDS2(-fileName => ">$fileName2");
-
     while (my $record = $gds2File1 -> readGds2Record)
     {
         if ($gds2File1 -> returnLayer == 59)
@@ -468,26 +467,24 @@ $G_epsilon *= 1; #ensure it's a number
 
 
   Gds2 dump:
-    here's a program to dump the contents of a stream file.
+    here's a complete program to dump the contents of a stream file.
     #!/usr/bin/perl -w
     use GDS2;
     $\="\n";
-
     my $gds2File = new GDS2(-fileName=>$ARGV[0]);
     while ($gds2File -> readGds2Record)
     {
         print $gds2File -> returnRecordAsString;
     }
 
-  Gds2 dump in GDT format (http://sourceforge.net/projects/gds2/) which is easier to parse
+
+  Gds2 dump in GDT format: which is smaller and easier to parse - http://sourceforge.net/projects/gds2/
     #!/usr/bin/perl -w
     use GDS2;
-    $\="\n";
-
     my $gds2File = new GDS2(-fileName=>$ARGV[0]);
     while ($gds2File -> readGds2Record)
     {
-        print $gds2File -> returnRecordAsString(-compact);
+        print $gds2File -> returnRecordAsString(-compact=>1);
     }
 
 
@@ -2467,7 +2464,7 @@ sub returnRecordAsString()
             if ($recordType eq 'UNITS')
             {
                 $string =~ s|(\d)\.e|$1e|; ## perl on Cygwin prints "1.e-9" others "1e-9"
-                $string =~ s|(\d)e\-0+|$1e-|; ## different perls print 1e-9 1e-09 1e-009 etc... change to 1e-9
+                $string =~ s|(\d)e\-0+|$1e-|; ## different perls print 1e-9 1e-09 1e-009 etc... standardize to 1e-9
             }
         }
         elsif ($self -> {'DataType'} == INTEGER_4)
@@ -2520,6 +2517,22 @@ sub returnRecordAsString()
         }
         $i++;
         $dateFld++ if ($dateFld);
+    }
+
+    if ($compact)
+    {
+        $G_gdtString .= $string;
+        if (($G_gdtString =~ m/}$/ || $G_gdtString =~ m/^(gds2|lib|m).*\d$/) || ($G_gdtString =~ m/^cell.*'$/))
+        {
+            $string = "$G_gdtString\n";
+            $string =~ s/{ /{/; #a little more compact
+            $string =~ s/(dt0|pt0|tt0|m1|w0|f0) //g; #these are all default in true GDT format
+            $G_gdtString = "";
+        }
+        else
+        {
+            $string = "";
+        }
     }
 
     $string;

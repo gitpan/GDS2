@@ -50,12 +50,7 @@ my $printLine = "";
 while ($gds2File -> readGds2Record)
 {
     my $line = $gds2File -> returnRecordAsString(-compact => 1);
-    $printLine .= $line;
-    if (($printLine =~ m/}$/ || $printLine =~ m/^(gds2|lib|m).*\d$/) || ($printLine =~ m/^cell.*'$/))
-    {
-        print DUMPOUT "$printLine\n";
-        $printLine = "";
-    }
+    print DUMPOUT "$line";
 }
 close DUMPOUT;
 
@@ -68,8 +63,6 @@ READGDT: while (my $line1 = <DUMPOLD>)
     chomp $line1;
     my $line2 = <DUMPNEW>;
     chomp $line2;
-    $line2 =~ s/{ /{/;
-    $line2 =~ s/(dt0|pt0|tt0|m1|w0|f0) //g; #these are all default in true GDT format
     if ($line1 ne $line2)
     {
         $good = 0;

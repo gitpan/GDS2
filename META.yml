@@ -2,7 +2,7 @@
 build_requires: {}
 dynamic_config: 0
 name: GDS2
-version: 3.31
+version: 3.32
 author: [SCHUMACK Ken Schumack]
 abstract: GDS2 stream module
 license: artistic
@@ -17,5 +17,5 @@ distribution_type: module
 provides:
   GDS2:
     file: lib/GDS2.pm
-    version: 3.31
+    version: 3.32
 
